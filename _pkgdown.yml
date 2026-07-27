@@ -1,4 +1,4 @@
-url: https://sounkou-bioinfo.github.io/ducksemantics/
+url: https://RGenomicsETL.github.io/ducksemantics/
 template:
   bootstrap: 5
 
@@ -25,6 +25,7 @@ reference:
   - title: Monarch and Literature Relations
     contents:
       - ducksemantics_monarch_release_catalog
+      - ducksemantics_monarch_project_pack
       - ducksemantics_monarch_import
       - ducksemantics_monarch_query
       - ducksemantics_monarch_gene_disease_holdout_audit

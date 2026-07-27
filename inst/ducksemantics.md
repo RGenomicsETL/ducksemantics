@@ -19,13 +19,21 @@ specifications.
 - Monarch facts are supplied by the caller with a typed catalog keyed by
   `provider_id` and `release_id`. Catalog order is a `Date`/`POSIXct`
   effective date or numeric source ordinal. Exact/as-of release queries and
-  holdouts retain provider/release identity.
+  holdouts retain provider/release identity. An official dated pack may be
+  caller-attached and projected only through connection-local `TEMP VIEW`s:
+  the projection accepts no `latest`, does not attach/download/collect/copy the
+  pack, and binds one exact catalog row.
 - `RClinVarbitration` owns append-only PubMed article and section events plus
   the provider snapshot catalog. Literature retrieval binds a provider and an
   exact source-order cutoff, selects each article's latest event at that
   ordinal, drops latest deletion events, and joins only same-version sections.
   It creates no literature table and does not load PubMed XML or bulk full
   text.
+- Attached Monarch role projections retain every raw edge and normalize
+  `gene_*`, `disease_*`, and `phenotype_*` only from explicit Biolink
+  subject/object categories. Missing or malformed role data, missing
+  predicates, negation, and unsupported orientations remain explicit statuses;
+  they are never causal defaults, votes, or merged assertions.
 - RClinVarbitration owns ClinVar/PubMed source relations. VariantStory owns
   case policy/ranking. VariantStoryBench owns evaluation.
 

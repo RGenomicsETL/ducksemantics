@@ -19,7 +19,7 @@ current boundary.
 ``` r
 install.packages(
   "ducksemantics",
-  repos = c("https://sounkou-bioinfo.r-universe.dev", "https://cloud.r-project.org")
+  repos = c("https://rgenomicsetl.r-universe.dev", "https://cloud.r-project.org")
 )
 ```
 
@@ -103,6 +103,59 @@ ducksemantics_monarch_gene_disease_holdout_audit(
     ## 1 HGNC:1100 MONDO:0000002 biolink:associated_with    2025-01     Monarch
     ##   source_version attrs train_release_id holdout_release_id
     ## 1           <NA>  <NA>          2024-01            2025-01
+
+## Attached dated Monarch annotation packs
+
+For an official dated Monarch DuckDB pack already available to DuckDB,
+attach it outside the package, verify its immutable receipt, and bind
+one exact typed catalog row. The projection does not attach URLs,
+download or collect pack rows into R, make a copy, or accept `latest`;
+it creates seven connection-local `TEMP VIEW`s over the attached pack.
+The role views retain every raw edge and add normalized roles only when
+explicit Biolink subject/object categories support the orientation. The
+source contract matches Monarch’s serialized text `negated` field and
+also projects `node_has_phenotype`. Filter on a `supported_*`
+`association_status` deliberately: malformed categories or negation,
+missing predicates, negated edges, and unsupported orientations are
+returned as statuses, never silently treated as support or causal
+evidence. `negation_status` still distinguishes an omitted optional
+qualifier from explicit false, explicit true, and malformed text;
+omission does not erase Monarch’s positive source assertion.
+
+``` r
+conn <- ducksemantics_connect()
+DBI::dbExecute(
+  conn,
+  "ATTACH '/data/monarch-kg/2026-07-14/monarch-kg.duckdb' AS monarch (READ_ONLY)"
+)
+
+releases <- data.frame(
+  provider_id = "infores:monarchinitiative",
+  release_id = "2026-07-14",
+  effective_date = as.Date("2026-07-14"),
+  stringsAsFactors = FALSE
+)
+views <- ducksemantics_monarch_project_pack(
+  conn, source_catalog = "monarch", releases = releases,
+  provider_id = "infores:monarchinitiative", release_id = "2026-07-14"
+)
+
+DBI::dbGetQuery(
+  conn,
+  "SELECT gene_id, disease_id, predicate, primary_knowledge_source
+   FROM semantic_monarch_gene_disease
+   WHERE association_status IN (
+     'supported_subject_to_object', 'supported_object_to_subject'
+   )"
+)
+```
+
+The returned `views` relation names views rather than materializing pack
+contents. The native association view preserves edge identifiers,
+predicate and category, primary/aggregator provenance,
+evidence/publication/qualifier arrays, agent and knowledge fields, taxa,
+negation, and raw original fields. No provider edges are voted or
+merged.
 
 ## Snapshot-bound literature retrieval
 

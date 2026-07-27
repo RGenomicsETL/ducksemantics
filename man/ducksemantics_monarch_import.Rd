@@ -7,19 +7,20 @@
 ducksemantics_monarch_import(
   facts,
   releases,
-  relation = c("gene_phenotype", "gene_disease"),
+  relation = c("gene_phenotype", "gene_disease", "disease_phenotype"),
   conn = NULL,
   table = NULL,
   replace = FALSE
 )
 }
 \arguments{
-\item{facts}{Gene-phenotype or gene-disease data frame, or a caller-owned
-DuckDB table name with \code{conn}.}
+\item{facts}{Gene-phenotype, gene-disease, or disease-phenotype data frame,
+or a caller-owned DuckDB table name with \code{conn}.}
 
 \item{releases}{Typed catalog from \code{\link[=ducksemantics_monarch_release_catalog]{ducksemantics_monarch_release_catalog()}}.}
 
-\item{relation}{Either \code{"gene_phenotype"} or \code{"gene_disease"}.}
+\item{relation}{One of \code{"gene_phenotype"}, \code{"gene_disease"}, or
+\code{"disease_phenotype"}.}
 
 \item{conn}{Optional DBI connection.}
 

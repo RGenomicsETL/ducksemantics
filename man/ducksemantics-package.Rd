@@ -7,16 +7,17 @@
 \title{DuckDB-native semantic and retrieval relations}
 \description{
 \code{ducksemantics} owns ontology graphs, validated HPO observations, typed
-release-cataloged Monarch relations, provider/snapshot-bound literature
-retrieval, source-grounded judgments, and genuine model/provider protocols.
-Bulk values are ordinary relations; evaluation belongs to \code{VariantStoryBench}.
+release-cataloged Monarch relations, narrow read-only projections of attached
+dated Monarch packs, provider/snapshot-bound literature retrieval,
+source-grounded judgments, and genuine model/provider protocols. Bulk values
+are ordinary relations; evaluation belongs to \code{VariantStoryBench}.
 }
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/sounkou-bioinfo/ducksemantics}
-  \item \url{https://sounkou-bioinfo.github.io/ducksemantics/}
-  \item Report bugs at \url{https://github.com/sounkou-bioinfo/ducksemantics/issues}
+  \item \url{https://github.com/RGenomicsETL/ducksemantics}
+  \item \url{https://RGenomicsETL.github.io/ducksemantics/}
+  \item Report bugs at \url{https://github.com/RGenomicsETL/ducksemantics/issues}
 }
 
 }

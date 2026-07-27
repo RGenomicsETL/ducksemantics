@@ -7,7 +7,7 @@
 ducksemantics_monarch_query(
   facts,
   releases,
-  relation = c("gene_phenotype", "gene_disease"),
+  relation = c("gene_phenotype", "gene_disease", "disease_phenotype"),
   provider_id,
   release_id = NULL,
   as_of = NULL,

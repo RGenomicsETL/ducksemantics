@@ -80,6 +80,18 @@ expect_equal(ducksemantics_monarch_query(imported_phenotype, release_catalog, "g
 expect_error(ducksemantics_monarch_query(imported_phenotype, release_catalog, "gene_phenotype", "monarch", release_id = "unknown"), "Unknown Monarch release")
 expect_error(ducksemantics_monarch_query(imported_phenotype, release_catalog, "gene_phenotype", "monarch", as_of = "2024-02-10"), "Date or POSIXct")
 expect_error(ducksemantics_monarch_release_catalog(transform(monarch_releases, effective_date = as.character(effective_date), source_ordinal = NA_real_)), "Date or POSIXct")
+monarch_disease_phenotype <- data.frame(
+  disease_id = "MONDO:1", phenotype_id = "HP:0001250",
+  release_id = "r-2024-02-09", provider_id = "monarch", stringsAsFactors = FALSE
+)
+imported_disease_phenotype <- ducksemantics_monarch_import(
+  monarch_disease_phenotype, release_catalog, "disease_phenotype"
+)
+expect_equal(imported_disease_phenotype$predicate, "biolink:has_phenotype")
+expect_equal(ducksemantics_monarch_query(
+  imported_disease_phenotype, release_catalog, "disease_phenotype", "monarch",
+  release_id = "r-2024-02-09"
+)$phenotype_id, "HP:0001250")
 monarch_disease <- data.frame(
   gene_id = c("HGNC:1", "HGNC:1", "HGNC:2", "HGNC:1"), disease_id = c("MONDO:1", "MONDO:2", "MONDO:3", "MONDO:OTHER"),
   release_id = c("r-2024-02-09", "r-2025", "r-2025", "r-2024-02-10"),
