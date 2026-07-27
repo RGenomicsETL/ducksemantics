@@ -2,7 +2,7 @@
 % Please edit documentation in R/interfaces.R
 \name{ducksemantics_lexical_annotator}
 \alias{ducksemantics_lexical_annotator}
-\title{Create the default DuckDB lexical annotator}
+\title{Create the default lexical grounding provider}
 \usage{
 ducksemantics_lexical_annotator()
 }
@@ -10,5 +10,5 @@ ducksemantics_lexical_annotator()
 An object implementing \link{DucksemanticsAnnotator}.
 }
 \description{
-Create the default DuckDB lexical annotator
+Create the default lexical grounding provider
 }

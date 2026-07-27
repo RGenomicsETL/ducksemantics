@@ -2,18 +2,18 @@
 % Please edit documentation in R/interfaces.R
 \name{ducksemantics_prompt_runner}
 \alias{ducksemantics_prompt_runner}
-\title{Wrap a prompt function as a typed prompt runner}
+\title{Wrap a prompt function as a prompt provider}
 \usage{
 ducksemantics_prompt_runner(fun, label = "function")
 }
 \arguments{
-\item{fun}{Function accepting \code{prompt} and returning response text.}
+\item{fun}{Function accepting a prompt and returning response text.}
 
-\item{label}{Provider label for reports.}
+\item{label}{Provider identity.}
 }
 \value{
 An object implementing \link{DucksemanticsPromptRunner}.
 }
 \description{
-Wrap a prompt function as a typed prompt runner
+Wrap a prompt function as a prompt provider
 }

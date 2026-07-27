@@ -7,7 +7,7 @@
 ducksemantics_bebel_tool_judgment_parser(tool_name = NULL)
 }
 \arguments{
-\item{tool_name}{Optional accepted tool-call name or names.}
+\item{tool_name}{Accepted tool-call names, or \code{NULL}.}
 }
 \value{
 An object implementing \link{DucksemanticsJudgmentParser}.

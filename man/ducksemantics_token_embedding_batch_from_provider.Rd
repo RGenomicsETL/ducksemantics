@@ -2,7 +2,7 @@
 % Please edit documentation in R/classes.R
 \name{ducksemantics_token_embedding_batch_from_provider}
 \alias{ducksemantics_token_embedding_batch_from_provider}
-\title{Construct a token embedding batch from a provider}
+\title{Construct token embedding rows from a provider}
 \usage{
 ducksemantics_token_embedding_batch_from_provider(
   text,
@@ -18,24 +18,23 @@ ducksemantics_token_embedding_batch_from_provider(
 \arguments{
 \item{text}{Character vector to embed.}
 
-\item{provider}{Object implementing \code{DucksemanticsTokenEmbeddingProvider}.}
+\item{provider}{Object implementing \link{DucksemanticsTokenEmbeddingProvider}.}
 
-\item{subject_id}{Subject identifiers for input texts. Defaults to \code{text}.}
+\item{subject_id}{Subject identifiers for input texts.}
 
-\item{subject_kind}{Subject type for stored token rows.}
+\item{subject_kind}{Subject type for stored rows.}
 
-\item{provider_label}{Stored provider label. Defaults to the provider label
-when available.}
+\item{provider_label}{Stored provider identity.}
 
-\item{block_id}{Optional block id per input text.}
+\item{block_id}{Optional block identifier per input text.}
 
-\item{attrs}{Optional attrs value per input text.}
+\item{attrs}{Optional metadata per input text.}
 
-\item{...}{Extra arguments passed to \code{ducksemantics_token_embed()}.}
+\item{...}{Arguments forwarded to \code{\link[=ducksemantics_token_embed]{ducksemantics_token_embed()}}.}
 }
 \value{
-A \code{DucksemanticsTokenEmbeddingBatch} object.
+A token-embedding data frame.
 }
 \description{
-Construct a token embedding batch from a provider
+Construct token embedding rows from a provider
 }

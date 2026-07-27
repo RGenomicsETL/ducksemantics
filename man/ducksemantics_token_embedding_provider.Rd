@@ -2,19 +2,18 @@
 % Please edit documentation in R/interfaces.R
 \name{ducksemantics_token_embedding_provider}
 \alias{ducksemantics_token_embedding_provider}
-\title{Wrap a token embedding function as a typed token provider}
+\title{Wrap a token embedding function as a token provider}
 \usage{
 ducksemantics_token_embedding_provider(fun, label = "function-token")
 }
 \arguments{
-\item{fun}{Function accepting a character vector and returning one
-token-embedding object per input text.}
+\item{fun}{Function accepting a prompt and returning response text.}
 
-\item{label}{Provider label for stored token rows.}
+\item{label}{Provider identity.}
 }
 \value{
-An object implementing \code{DucksemanticsTokenEmbeddingProvider}.
+An object implementing \link{DucksemanticsTokenEmbeddingProvider}.
 }
 \description{
-Wrap a token embedding function as a typed token provider
+Wrap a token embedding function as a token provider
 }

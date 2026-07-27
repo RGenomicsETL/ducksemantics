@@ -2,12 +2,10 @@
 % Please edit documentation in R/interfaces.R
 \name{DucksemanticsTokenEmbeddingProvider}
 \alias{DucksemanticsTokenEmbeddingProvider}
-\title{Structural interface for token embedding providers}
+\title{Token-embedding-provider protocol}
 \usage{
 DucksemanticsTokenEmbeddingProvider
 }
 \description{
-A token embedding provider accepts a character vector and returns one
-token-embedding object per input text. Each object contains an \code{embeddings}
-matrix and token metadata.
+Token-embedding-provider protocol
 }

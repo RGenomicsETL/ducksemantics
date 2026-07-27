@@ -4,11 +4,12 @@
 \name{ducksemantics-package}
 \alias{ducksemantics}
 \alias{ducksemantics-package}
-\title{DuckDB-native semantic graph grounding}
+\title{DuckDB-native semantic and retrieval relations}
 \description{
-\code{ducksemantics} owns a small graph-as-SQL substrate for semantic grounding:
-graph tables, alias indexes, mention extraction, transitive closure, and
-model judgment prompts over deterministic candidates.
+\code{ducksemantics} owns ontology graphs, validated HPO observations, typed
+release-cataloged Monarch relations, provider/snapshot-bound literature
+retrieval, source-grounded judgments, and genuine model/provider protocols.
+Bulk values are ordinary relations; evaluation belongs to \code{VariantStoryBench}.
 }
 \seealso{
 Useful links:

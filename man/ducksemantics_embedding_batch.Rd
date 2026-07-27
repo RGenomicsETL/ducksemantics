@@ -2,7 +2,7 @@
 % Please edit documentation in R/classes.R
 \name{ducksemantics_embedding_batch}
 \alias{ducksemantics_embedding_batch}
-\title{Construct an embedding batch}
+\title{Construct embedding rows}
 \usage{
 ducksemantics_embedding_batch(
   embeddings,
@@ -14,19 +14,22 @@ ducksemantics_embedding_batch(
 )
 }
 \arguments{
-\item{embeddings}{Numeric matrix with one row per subject.}
+\item{embeddings}{Finite numeric matrix with one row per subject.}
 
-\item{subject_id}{Subject identifiers matching embedding rows.}
+\item{subject_id}{Non-empty subject identifiers.}
 
-\item{subject_kind}{Subject type, e.g. \code{"node"}, \code{"alias"}, \code{"mention"}, or
-\code{"document"}.}
+\item{subject_kind}{Subject type.}
 
-\item{provider}{Embedding provider label.}
+\item{provider}{Provider identity.}
 
-\item{text}{Optional source text for each embedding.}
+\item{text}{Optional source text per row.}
 
-\item{attrs}{Optional JSON text or other metadata for each embedding.}
+\item{attrs}{Optional metadata text per row.}
+}
+\value{
+A data frame suitable for \code{\link[=ducksemantics_write_embeddings]{ducksemantics_write_embeddings()}}.
 }
 \description{
-Construct an embedding batch
+Bulk embedding values are an ordinary data frame with one \code{FLOAT[]}-ready
+numeric vector per row; they are not an S7 value object.
 }

@@ -2,12 +2,10 @@
 % Please edit documentation in R/interfaces.R
 \name{DucksemanticsPromptRunner}
 \alias{DucksemanticsPromptRunner}
-\title{Structural interface for prompt runners}
+\title{Prompt-runner provider protocol}
 \usage{
 DucksemanticsPromptRunner
 }
 \description{
-A prompt runner accepts a prompt string and returns response text. BebeLM is
-one implementation; cloud LLMs, test fixtures, and other local models should
-implement the same generic instead of changing downstream judgment code.
+Prompt-runner provider protocol
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/interfaces.R
 \name{ducksemantics_embeddinggemma_provider}
 \alias{ducksemantics_embeddinggemma_provider}
-\title{Create an EmbeddingGemma dense retrieval provider}
+\title{Create an EmbeddingGemma provider}
 \usage{
 ducksemantics_embeddinggemma_provider(
   model,
@@ -16,27 +16,25 @@ ducksemantics_embeddinggemma_provider(
 )
 }
 \arguments{
-\item{model}{A \code{Rbebelm} \code{EmbeddingGemmaModel} object.}
+\item{model}{An \code{Rbebelm} \code{EmbeddingGemmaModel}.}
 
-\item{label}{Provider label for stored dense vectors.}
+\item{label}{Provider identity.}
 
-\item{task}{EmbeddingGemma task prompt. Use the same task for vectors that
-will be compared; use the dedicated query/document tasks only as a matched
-retrieval pair.}
+\item{task}{EmbeddingGemma task.}
 
-\item{title}{Optional document title, valid only for \code{retrieval_document}.}
+\item{title}{Optional document title.}
 
-\item{dimensions}{Matryoshka dimension: 768, 512, 256, or 128.}
+\item{dimensions}{Matryoshka dimension.}
 
 \item{normalize}{L2-normalize output rows.}
 
-\item{truncate}{Truncate inputs longer than EmbeddingGemma's context.}
+\item{truncate}{Truncate overly long input.}
 
-\item{check_interrupt}{Poll for R interrupts between bounded native batches.}
+\item{check_interrupt}{Poll for R interrupts.}
 }
 \value{
 An object implementing \link{DucksemanticsEmbeddingProvider}.
 }
 \description{
-Create an EmbeddingGemma dense retrieval provider
+Create an EmbeddingGemma provider
 }

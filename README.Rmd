@@ -4,36 +4,19 @@ output: github_document
 
 <!-- README.md is generated from README.Rmd. Please edit that file. -->
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-
-embeddinggemma_weights <- Sys.getenv("EMBEDDING_GEMMA_WEIGHTS_FILE", NA_character_)
-colbert_weights <- Sys.getenv("COLBERT_WEIGHTS_FILE", NA_character_)
-bebel_weights <- Sys.getenv("BEBELM_WEIGHTS_FILE", NA_character_)
-stopifnot(
-  file.exists(embeddinggemma_weights),
-  file.exists(colbert_weights),
-  file.exists(bebel_weights)
-)
-```
-
 # ducksemantics
 
-`ducksemantics` is a DuckDB-native semantic graph and evidence-grounding
-package for R. It stores ontology nodes, aliases, graph edges, dense vectors,
-and ColBERT document token vectors in one auditable DuckDB database.
+`ducksemantics` is a DuckDB-native semantic and retrieval substrate for R. It
+owns ontology graphs, validated HPO observations, cataloged Monarch relations,
+snapshot-bound literature retrieval, source-grounded judgments, and optional
+local model/provider protocols. It does not own ClinVar/PubMed source storage,
+case ranking, or evaluation.
 
-It combines the Rbebelm retrieval and judgment APIs in one graph workflow.
-EmbeddingGemma supplies task-prompted dense vectors for broad retrieval and
-DuckDB HNSW candidate generation, LFM2.5-ColBERT supplies exact
-late-interaction MaxSim reranking of stored candidate documents, and BebeLM
-records structured judgments with negation, uncertainty, family history, and
-subject context. HPO, MONDO, ORPHANET, and local knowledge graphs load through
-the same graph schema.
+Bulk values are ordinary data frames or caller-owned DuckDB relations. S7 is
+reserved for real prompt, embedding, parser, and annotator provider protocols.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the current boundary.
 
 ## Install
-
-Install the release and its R dependencies from the project R-universe:
 
 ```r
 install.packages(
@@ -42,156 +25,135 @@ install.packages(
 )
 ```
 
-## Build a semantic graph
+## Ontology candidates and accepted HPO observations
 
-The bundled HPO fixture is a small, attribution-preserving subset of the real
-Human Phenotype Ontology. It keeps the README executable without downloading an
-ontology during rendering.
+Lexical candidates are intentionally distinct from accepted observations. An
+accepted observation must carry its HPO identifier, exact zero-based half-open
+source span, context, method/provider provenance, confidence, and explicit
+`accepted` status.
 
-```{r graph}
+```{r hpo}
 library(ducksemantics)
 
-conn <- ducksemantics_connect()
-hpo <- ducksemantics_read_obo(
-  system.file("extdata", "hpo-readme.obo", package = "ducksemantics", mustWork = TRUE),
-  family = "HPO",
-  source = "HPO README fixture"
-)
-ducksemantics_write_graph(
-  conn,
-  nodes = hpo$nodes,
-  aliases = hpo$aliases,
-  edges = hpo$edges,
-  replace = TRUE
+documents <- data.frame(
+  document_id = "case-001",
+  source_text = "The patient has seizures.",
+  stringsAsFactors = FALSE
 )
 
-# Deterministic, explainable candidates. This intentionally includes negated
-# mentions; BebeLM judgment decides whether the mention is a patient finding.
-case_text <- "The proband has short stature and seizures but no diabetes mellitus."
-mentions <- ducksemantics_annotate(
-  conn,
-  case_text,
-  document_id = "case-001"
+observations <- data.frame(
+  document_id = "case-001",
+  hpo_id = "HP:0001250",
+  start_offset = 16L,
+  end_offset = 24L,
+  source_text = "seizures",
+  context_status = "present",
+  method = "lexical_alias",
+  provider_id = "local-lexicon",
+  provider_version = "1",
+  confidence = 1,
+  status = "accepted",
+  stringsAsFactors = FALSE
 )
-mentions
+
+ducksemantics_hpo_observations(documents, observations)
 ```
 
-### Full HPO validation
+The validator rejects hallucinated text, empty spans, out-of-bounds spans, and
+any context outside `present`, `absent/negated`, `family_history`, `uncertain`,
+`conflict`, or `unsupported`.
 
-The 0.1.0 release was exercised against the complete HPO 2026-06-23 ontology.
-The run loaded 19,836 active nodes, 50,029 aliases, and 24,378 direct edges,
-then materialized 202,740 `is_a` closure rows. The model-scale run persisted one
-256-dimensional EmbeddingGemma vector for every active term and 182,884 native
-ColBERT token vectors across the same 19,836 terms before running dense and
-exact MaxSim queries.
+## Cataloged Monarch facts
 
-## Dense retrieval with EmbeddingGemma
+Callers provide both facts and a typed release catalog. A catalog row identifies
+one provider/release and supplies a `Date`/`POSIXct` effective date or a numeric
+source ordinal. Exact and as-of queries bind the provider plus a cataloged
+release; historical gene-disease holdouts are explicit anti-join audits.
 
-EmbeddingGemma provides the broad candidate stage. Choose its task deliberately:
-vectors sharing a compatible prompt contract can be compared directly. This
-example loads the local GGUF selected by `EMBEDDING_GEMMA_WEIGHTS_FILE` and
-executes the native encoder.
-
-```{r dense}
-library(Rbebelm)
-
-embedding_model <- embeddinggemma_model_load(
-  embeddinggemma_weights,
-  num_threads = 2
+```{r monarch}
+releases <- data.frame(
+  release_id = c("2024-01", "2025-01"),
+  provider_id = "Monarch",
+  effective_date = as.Date(c("2024-01-01", "2025-01-01")),
+  source_ordinal = c(1, 2),
+  stringsAsFactors = FALSE
 )
-dense_provider <- ducksemantics_embeddinggemma_provider(
-  embedding_model,
-  label = "embeddinggemma-hpo-v1",
-  task = "semantic_similarity",
-  dimensions = 256L
+gene_disease <- data.frame(
+  gene_id = c("HGNC:1100", "HGNC:1100"),
+  disease_id = c("MONDO:0000001", "MONDO:0000002"),
+  release_id = c("2024-01", "2025-01"),
+  provider_id = "Monarch",
+  stringsAsFactors = FALSE
 )
 
-terms <- DBI::dbGetQuery(conn, "SELECT node_id, label FROM semantic_nodes WHERE family = 'HPO'")
-vectors <- ducksemantics_embed_cached(
-  terms$label,
-  provider = dense_provider,
-  cache_dir = file.path(tempdir(), "ducksemantics-embeddinggemma-hpo-cache")
+gene_disease <- ducksemantics_monarch_import(
+  gene_disease, releases, relation = "gene_disease"
 )
-ducksemantics_embedding_batch(
-  vectors,
-  subject_id = terms$node_id,
-  subject_kind = "hpo_term",
-  provider = "embeddinggemma-hpo-v1",
-  text = terms$label
-) |> ducksemantics_write_embeddings(conn, replace = TRUE)
-
-# Exact DuckDB vector search is sufficient for this small example. An HNSW
-# index is optional for a larger dense candidate collection.
-dense_hits <- ducksemantics_embedding_query(
-  ducksemantics_embed(dense_provider, "short height")[1L, ],
-  provider = "embeddinggemma-hpo-v1",
-  subject_kind = "hpo_term",
-  top_k = 3L
-) |> ducksemantics_embedding_search(conn)
-dense_hits
+ducksemantics_monarch_gene_disease_holdout_audit(
+  gene_disease, releases, provider_id = "Monarch",
+  train_release_id = "2024-01", holdout_release_id = "2025-01"
+)
 ```
 
-## Exact late interaction with native ColBERT
+## Snapshot-bound literature retrieval
 
-ColBERT document vectors are persisted once, and each query is encoded with the
-model's query contract. DuckDB then computes the exact MaxSim sum over stored
-document vectors. Large corpora can send dense HNSW, lexical, or graph
-candidates to this stage through `candidate_subject_id`. This example loads the
-local GGUF selected by `COLBERT_WEIGHTS_FILE` and uses Rbebelm's native
-LFM2.5-ColBERT encoder.
+`RClinVarbitration` owns append-only PubMed source history and
+`ducksemantics` neither imports nor stores literature. Retrieval consumes the
+same provider-scoped source-order projection:
 
-```{r colbert}
-colbert_model <- colbert_model_load(colbert_weights, num_threads = 2)
-colbert_documents <- ducksemantics_colbert_provider(
-  colbert_model,
-  role = "document",
-  label = "lfm2.5-colbert-350m-q4km"
+- **snapshots:** `provider_id`, `snapshot_id`, finite integer
+  `high_water_ordinal`, and optional `POSIXct` `effective_at`;
+- **article versions:** `provider_id`, `article_id`, `pmid`, `version_id`,
+  finite integer `source_ordinal`, and logical `is_deleted`;
+- **version-bound sections:** `provider_id`, `article_id`, `pmid`,
+  `version_id`, finite integer `source_ordinal`, `section`, and exact non-empty
+  `text`.
+
+For a cataloged provider/snapshot, it selects the maximum
+`source_ordinal <= high_water_ordinal` per article, excludes an article when
+that selected event is deleted, and joins sections only on all version keys.
+Thus order is numeric (for example 10 follows 9), not lexical. Exact nonempty
+zero-based half-open source spans are returned.
+
+This is directly derivable from RClinVarbitration without a storage adapter:
+`pubmed_sources` supplies provider, snapshot, source ordinal, and application
+timestamp; `pubmed_articles` supplies the event and deletion flag; and
+`pubmed_abstracts` supplies same-source version-bound sections. A caller may
+also project `article_title` into a `title` section. The relations remain
+caller-owned; `ducksemantics` does not write or materialize a shadow copy.
+
+```{r literature}
+snapshots <- data.frame(
+  provider_id = c("pubmed", "pubmed"),
+  snapshot_id = c("baseline", "update"),
+  high_water_ordinal = c(9, 10),
+  effective_at = as.POSIXct(c("2025-01-09", "2025-01-10"), tz = "UTC"),
+  stringsAsFactors = FALSE
+)
+articles <- data.frame(
+  provider_id = "pubmed",
+  article_id = c("pmid:123", "pmid:123"),
+  pmid = "123",
+  version_id = c("source-9", "source-10"),
+  source_ordinal = c(9, 10),
+  is_deleted = c(FALSE, FALSE),
+  stringsAsFactors = FALSE
+)
+sections <- data.frame(
+  provider_id = "pubmed",
+  article_id = c("pmid:123", "pmid:123"),
+  pmid = "123",
+  version_id = c("source-9", "source-10"),
+  source_ordinal = c(9, 10),
+  section = "BACKGROUND",
+  text = c("Seizure phenotype in a family", "Updated seizure phenotype"),
+  stringsAsFactors = FALSE
 )
 
-ducksemantics_token_embedding_batch_from_provider(
-  terms$label,
-  provider = colbert_documents,
-  subject_id = terms$node_id,
-  subject_kind = "hpo_term"
-) |> ducksemantics_write_token_embeddings(conn, replace = TRUE)
-
-hits <- ducksemantics_colbert_query(
-  colbert_model,
-  "developmental delay with seizures",
-  provider = "lfm2.5-colbert-350m-q4km",
-  subject_kind = "hpo_term",
-  top_k = 25L
-) |> ducksemantics_late_interaction_search(conn)
-hits
-```
-
-The token table holds 128-dimensional LFM2.5-ColBERT document vectors for
-variable-length MaxSim scoring. `duckdb-vss` can accelerate the fixed-width
-EmbeddingGemma candidate stage while DuckDB evaluates the token-level reranker.
-
-## BebeLM candidate judgment
-
-BebeLM reviews candidates together with the retrieved context and records a
-structured decision for negated, uncertain, historical, and subject-specific
-mentions. Replacement concepts come from the supplied candidates and graph
-neighbors, preserving a direct evidence trail. This example loads the local
-GGUF selected by `BEBELM_WEIGHTS_FILE` and executes a BebeLM judgment.
-
-```{r judge}
-generation_model <- bebel_model_load(bebel_weights, num_threads = 2)
-agent <- bebel_agent(generation_model, greedy = TRUE, max_gen = 256L, max_think = 0L)
-
-judgments <- ducksemantics_bebel_judge(
-  agent,
-  text = case_text,
-  mentions = mentions,
-  conn = conn,
-  parser = ducksemantics_bebel_tool_judgment_parser(),
-  model = "LFM2.5-8B-A1B"
+ducksemantics_literature_retrieve(
+  articles, sections, snapshots,
+  query = "seizure",
+  provider_id = "pubmed",
+  snapshot_id = "update"
 )
-judgments
-```
-
-```{r cleanup, include=FALSE}
-DBI::dbDisconnect(conn, shutdown = TRUE)
 ```

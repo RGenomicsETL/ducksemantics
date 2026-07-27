@@ -3,52 +3,44 @@ template:
   bootstrap: 5
 
 reference:
-  - title: Graph Store
+  - title: Ontology Graphs
     contents:
       - ducksemantics_connect
       - ducksemantics_init
       - ducksemantics_schema_sql
       - ducksemantics_tables
+      - ducksemantics_read_obo
+      - ducksemantics_write_obo
       - ducksemantics_write_graph
-      - ducksemantics_embedding_batch
-      - ducksemantics_write_embeddings
-      - ducksemantics_token_embedding_batch
-      - ducksemantics_token_embedding_batch_from_provider
-      - ducksemantics_write_token_embeddings
-      - ducksemantics_token_embedding_query
-      - ducksemantics_late_interaction_search
-      - ducksemantics_embedding_query
-      - ducksemantics_embedding_search
-      - ducksemantics_embedding_index_spec
-      - ducksemantics_materialize_embedding_index
-      - ducksemantics_embedding_cluster_spec
-      - ducksemantics_cluster_embeddings
-      - ducksemantics_embedding_cluster_summary
-      - ducksemantics_embedding_cluster_graph_agreement
       - ducksemantics_projection_sql
       - ducksemantics_closure_sql
-      - ducksemantics_index_stats
-      - DucksemanticsEmbeddingBatch
-      - DucksemanticsTokenEmbeddingBatch
-      - DucksemanticsTokenEmbeddingQuery
-      - DucksemanticsEmbeddingQuery
-      - DucksemanticsEmbeddingIndexSpec
-      - DucksemanticsEmbeddingClusterSpec
-  - title: Value Types
-    contents:
-      - DucksemanticsScalarText
-      - DucksemanticsSqlIdentifier
-      - DucksemanticsDbConnection
-      - DucksemanticsTable
-      - DucksemanticsEmbeddingMatrix
-  - title: Grounding
-    contents:
       - ducksemantics_normalize
       - ducksemantics_tokens
       - ducksemantics_index_aliases
       - ducksemantics_annotate
-      - ducksemantics_record_judgments
-  - title: Interfaces
+  - title: HPO Observations
+    contents:
+      - ducksemantics_hpo_observation_contract
+      - ducksemantics_hpo_observations
+  - title: Monarch and Literature Relations
+    contents:
+      - ducksemantics_monarch_release_catalog
+      - ducksemantics_monarch_import
+      - ducksemantics_monarch_query
+      - ducksemantics_monarch_gene_disease_holdout_audit
+      - ducksemantics_literature_snapshot_catalog
+      - ducksemantics_literature_retrieve
+  - title: Semantic Retrieval
+    contents:
+      - ducksemantics_embedding_batch
+      - ducksemantics_write_embeddings
+      - ducksemantics_embedding_search
+      - ducksemantics_materialize_embedding_index
+      - ducksemantics_token_embedding_batch
+      - ducksemantics_token_embedding_batch_from_provider
+      - ducksemantics_write_token_embeddings
+      - ducksemantics_late_interaction_search
+  - title: Provider Protocols and Judgments
     contents:
       - DucksemanticsAnnotator
       - DucksemanticsPromptRunner
@@ -60,7 +52,6 @@ reference:
       - ducksemantics_parse
       - ducksemantics_embed
       - ducksemantics_token_embed
-      - ducksemantics_embed_cached
       - ducksemantics_lexical_annotator
       - ducksemantics_prompt_runner
       - ducksemantics_embedding_provider
@@ -69,22 +60,8 @@ reference:
       - ducksemantics_bebel_runner
       - ducksemantics_embeddinggemma_provider
       - ducksemantics_colbert_provider
-      - ducksemantics_colbert_query
       - ducksemantics_bebel_tool_judgment_parser
-  - title: Model Judgment
-    contents:
       - ducksemantics_default_judgment_instructions
       - ducksemantics_judgment_prompt
       - ducksemantics_judge
-      - ducksemantics_bebel_judge
-  - title: Ontology Import
-    contents:
-      - ducksemantics_cache_file
-      - ducksemantics_cache_rds
-      - ducksemantics_read_obo
-      - ducksemantics_write_obo
-  - title: Benchmarking
-    contents:
-      - ducksemantics_benchmark_cases
-      - ducksemantics_benchmark
-      - ducksemantics_benchmark_metrics
+      - ducksemantics_record_judgments

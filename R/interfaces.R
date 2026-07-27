@@ -1,796 +1,295 @@
-#' Provider interface generics
+#' Provider protocol generics
 #'
-#' These S7 generics are the behavior required by the structural interfaces.
-#' Provider packages should define concrete S7 classes and methods for these
-#' generics, then consuming code can assert the corresponding `Ducksemantics*`
-#' interface.
+#' These S7 generics are reserved for real pluggable providers. All bulk input
+#' and output remains an ordinary data frame or matrix.
 #'
 #' @param provider Prompt or embedding provider.
 #' @param parser Judgment parser.
-#' @param annotator Text-grounding provider.
+#' @param annotator Grounding provider.
 #' @param prompt Prompt text.
-#' @param response Raw model response text.
+#' @param response Raw response text.
 #' @param text Source text.
 #' @param conn DBI connection.
-#' @param document_id Optional document id.
-#' @param prefix Semantic table prefix.
-#' @param longest_match Drop matches contained by a longer span.
-#' @param record Append returned rows to the semantic store?
+#' @param document_id Optional document identifier.
+#' @param prefix Semantic-table prefix.
+#' @param longest_match Drop nested lexical candidates.
+#' @param record Persist candidates.
 #' @param ... Provider-specific arguments.
-#' @return Provider-specific output: response text, embedding matrix, parsed
-#'   judgment data frame, or grounded mention data frame.
+#' @return Provider-specific text, matrix, or data frame.
 #' @name ducksemantics_provider_generics
 NULL
 
 #' @rdname ducksemantics_provider_generics
 #' @export
-ducksemantics_run <- S7::new_generic(
-  "ducksemantics_run",
-  "provider",
-  function(provider, prompt, ...) S7::S7_dispatch()
-)
-
+ducksemantics_run <- S7::new_generic("ducksemantics_run", "provider",
+  function(provider, prompt, ...) S7::S7_dispatch())
 #' @rdname ducksemantics_provider_generics
 #' @export
-ducksemantics_embed <- S7::new_generic(
-  "ducksemantics_embed",
-  "provider",
-  function(provider, text, ...) S7::S7_dispatch()
-)
-
+ducksemantics_embed <- S7::new_generic("ducksemantics_embed", "provider",
+  function(provider, text, ...) S7::S7_dispatch())
 #' @rdname ducksemantics_provider_generics
 #' @export
-ducksemantics_token_embed <- S7::new_generic(
-  "ducksemantics_token_embed",
-  "provider",
-  function(provider, text, ...) S7::S7_dispatch()
-)
-
+ducksemantics_token_embed <- S7::new_generic("ducksemantics_token_embed", "provider",
+  function(provider, text, ...) S7::S7_dispatch())
 #' @rdname ducksemantics_provider_generics
 #' @export
-ducksemantics_parse <- S7::new_generic(
-  "ducksemantics_parse",
-  "parser",
-  function(parser, response, ...) S7::S7_dispatch()
-)
-
+ducksemantics_parse <- S7::new_generic("ducksemantics_parse", "parser",
+  function(parser, response, ...) S7::S7_dispatch())
 #' @rdname ducksemantics_provider_generics
 #' @export
-ducksemantics_ground <- S7::new_generic(
-  "ducksemantics_ground",
-  "annotator",
+ducksemantics_ground <- S7::new_generic("ducksemantics_ground", "annotator",
   function(annotator, conn, text, document_id = NULL, prefix = "semantic",
-           longest_match = TRUE, record = FALSE, ...) {
-    S7::S7_dispatch()
-  }
-)
+           longest_match = TRUE, record = FALSE, ...) S7::S7_dispatch())
 
-#' Structural interface for prompt runners
-#'
-#' A prompt runner accepts a prompt string and returns response text. BebeLM is
-#' one implementation; cloud LLMs, test fixtures, and other local models should
-#' implement the same generic instead of changing downstream judgment code.
-#'
+#' Prompt-runner provider protocol
 #' @export
 DucksemanticsPromptRunner <- s7contract::new_interface(
-  "DucksemanticsPromptRunner",
-  package = "ducksemantics",
-  generics = list(
-    run = s7contract::interface_requirement(
-      ducksemantics_run,
-      args = list(prompt = S7::class_character),
-      returns = S7::class_character
-    )
-  )
+  "DucksemanticsPromptRunner", package = "ducksemantics",
+  generics = list(run = s7contract::interface_requirement(
+    ducksemantics_run, args = list(prompt = S7::class_character), returns = S7::class_character
+  ))
 )
-
-#' Structural interface for embedding providers
-#'
-#' An embedding provider accepts a character vector and returns a numeric matrix
-#' with one row per input text.
-#'
+#' Embedding-provider protocol
 #' @export
 DucksemanticsEmbeddingProvider <- s7contract::new_interface(
-  "DucksemanticsEmbeddingProvider",
-  package = "ducksemantics",
-  generics = list(
-    embed = s7contract::interface_requirement(
-      ducksemantics_embed,
-      args = list(text = S7::class_character),
-      returns = S7::class_any
-    )
-  )
+  "DucksemanticsEmbeddingProvider", package = "ducksemantics",
+  generics = list(embed = s7contract::interface_requirement(
+    ducksemantics_embed, args = list(text = S7::class_character), returns = S7::class_any
+  ))
 )
-
-#' Structural interface for token embedding providers
-#'
-#' A token embedding provider accepts a character vector and returns one
-#' token-embedding object per input text. Each object contains an `embeddings`
-#' matrix and token metadata.
-#'
+#' Token-embedding-provider protocol
 #' @export
 DucksemanticsTokenEmbeddingProvider <- s7contract::new_interface(
-  "DucksemanticsTokenEmbeddingProvider",
-  package = "ducksemantics",
-  generics = list(
-    token_embed = s7contract::interface_requirement(
-      ducksemantics_token_embed,
-      args = list(text = S7::class_character),
-      returns = S7::class_any
-    )
-  )
+  "DucksemanticsTokenEmbeddingProvider", package = "ducksemantics",
+  generics = list(token_embed = s7contract::interface_requirement(
+    ducksemantics_token_embed, args = list(text = S7::class_character), returns = S7::class_any
+  ))
 )
-
-#' Structural interface for judgment parsers
-#'
-#' A judgment parser turns raw model text into a data frame that includes
-#' `mention_id` and `decision`.
-#'
+#' Judgment-parser provider protocol
 #' @export
 DucksemanticsJudgmentParser <- s7contract::new_interface(
-  "DucksemanticsJudgmentParser",
-  package = "ducksemantics",
-  generics = list(
-    parse = s7contract::interface_requirement(
-      ducksemantics_parse,
-      args = list(response = S7::class_character),
-      returns = S7::class_data.frame
-    )
-  )
+  "DucksemanticsJudgmentParser", package = "ducksemantics",
+  generics = list(parse = s7contract::interface_requirement(
+    ducksemantics_parse, args = list(response = S7::class_character), returns = S7::class_data.frame
+  ))
 )
-
-#' Structural interface for text annotators
-#'
-#' An annotator grounds text against the semantic store and returns mention
-#' rows. The default implementation is the DuckDB lexical alias index.
-#'
+#' Grounding-provider protocol
 #' @export
 DucksemanticsAnnotator <- s7contract::new_interface(
-  "DucksemanticsAnnotator",
-  package = "ducksemantics",
-  generics = list(
-    ground = s7contract::interface_requirement(
-      ducksemantics_ground,
-      args = list(
-        conn = S7::class_any,
-        text = S7::class_character,
-        document_id = S7::new_union(NULL, S7::class_character),
-        prefix = S7::class_character,
-        longest_match = S7::class_logical,
-        record = S7::class_logical
-      ),
-      returns = S7::class_data.frame
-    )
-  )
+  "DucksemanticsAnnotator", package = "ducksemantics",
+  generics = list(ground = s7contract::interface_requirement(
+    ducksemantics_ground,
+    args = list(conn = S7::class_any, text = S7::class_character,
+      document_id = S7::new_union(NULL, S7::class_character),
+      prefix = S7::class_character, longest_match = S7::class_logical,
+      record = S7::class_logical), returns = S7::class_data.frame
+  ))
 )
 
 ducksemantics_function_prompt_runner_class <- S7::new_class(
-  "ducksemantics_function_prompt_runner",
-  package = "ducksemantics",
-  properties = list(
-    fun = S7::class_function,
-    label = S7::class_character
-  )
+  "ducksemantics_function_prompt_runner", package = "ducksemantics",
+  properties = list(fun = S7::class_function, label = S7::class_character)
 )
-
 ducksemantics_bebel_runner_class <- S7::new_class(
-  "ducksemantics_bebel_runner",
-  package = "ducksemantics",
-  properties = list(
-    agent = S7::class_any,
-    on_event = S7::new_union(NULL, S7::class_function)
-  )
+  "ducksemantics_bebel_runner", package = "ducksemantics",
+  properties = list(agent = S7::class_any, on_event = S7::new_union(NULL, S7::class_function))
 )
-
 ducksemantics_function_embedding_provider_class <- S7::new_class(
-  "ducksemantics_function_embedding_provider",
-  package = "ducksemantics",
-  properties = list(
-    fun = S7::class_function,
-    label = S7::class_character
-  )
+  "ducksemantics_function_embedding_provider", package = "ducksemantics",
+  properties = list(fun = S7::class_function, label = S7::class_character)
 )
-
 ducksemantics_function_token_embedding_provider_class <- S7::new_class(
-  "ducksemantics_function_token_embedding_provider",
-  package = "ducksemantics",
-  properties = list(
-    fun = S7::class_function,
-    label = S7::class_character
-  )
+  "ducksemantics_function_token_embedding_provider", package = "ducksemantics",
+  properties = list(fun = S7::class_function, label = S7::class_character)
 )
-
 ducksemantics_embeddinggemma_provider_class <- S7::new_class(
-  "ducksemantics_embeddinggemma_provider",
-  package = "ducksemantics",
-  properties = list(
-    model = S7::class_any,
-    label = ducksemantics_text_property,
-    task = ducksemantics_text_property,
-    title = ducksemantics_optional_text_property,
-    dimensions = ducksemantics_positive_integer_property,
-    normalize = ducksemantics_flag_property,
-    truncate = ducksemantics_flag_property,
-    check_interrupt = ducksemantics_flag_property
-  ),
-  validator = function(self) {
-    if (!S7::prop(self, "task") %in% c(
-      "retrieval_query", "retrieval_document", "question_answering",
-      "fact_verification", "classification", "clustering",
-      "semantic_similarity", "code_retrieval", "summarization", "raw"
-    )) {
-      return("@task must be an EmbeddingGemma task.")
-    }
-    if (!is.null(S7::prop(self, "title")) &&
-          !identical(S7::prop(self, "task"), "retrieval_document")) {
-      return("@title is valid only for @task = \"retrieval_document\".")
-    }
-    if (!S7::prop(self, "dimensions") %in% c(768, 512, 256, 128)) {
-      return("@dimensions must be one of 768, 512, 256, or 128.")
-    }
-    NULL
-  }
+  "ducksemantics_embeddinggemma_provider", package = "ducksemantics",
+  properties = list(model = S7::class_any, label = S7::class_character,
+    task = S7::class_character, title = S7::new_union(NULL, S7::class_character),
+    dimensions = S7::class_numeric, normalize = S7::class_logical,
+    truncate = S7::class_logical, check_interrupt = S7::class_logical)
 )
-
 ducksemantics_colbert_provider_class <- S7::new_class(
-  "ducksemantics_colbert_provider",
-  package = "ducksemantics",
-  properties = list(
-    model = S7::class_any,
-    label = ducksemantics_text_property,
-    role = ducksemantics_text_property
-  ),
-  validator = function(self) {
-    if (!S7::prop(self, "role") %in% c("query", "document")) {
-      return('@role must be "query" or "document".')
-    }
-    NULL
-  }
+  "ducksemantics_colbert_provider", package = "ducksemantics",
+  properties = list(model = S7::class_any, label = S7::class_character, role = S7::class_character)
 )
-
-ducksemantics_embedding_cache_spec_class <- S7::new_class(
-  "ducksemantics_embedding_cache_spec",
-  package = "ducksemantics",
-  properties = list(
-    cache_dir = ducksemantics_text_property,
-    chunk_size = ducksemantics_positive_integer_property,
-    refresh = ducksemantics_flag_property
-  )
-)
-
 ducksemantics_json_judgment_parser_class <- S7::new_class(
-  "ducksemantics_json_judgment_parser",
-  package = "ducksemantics"
+  "ducksemantics_json_judgment_parser", package = "ducksemantics"
 )
-
 ducksemantics_bebel_tool_judgment_parser_class <- S7::new_class(
-  "ducksemantics_bebel_tool_judgment_parser",
-  package = "ducksemantics",
-  properties = list(
-    tool_name = S7::new_union(NULL, S7::class_character)
-  )
+  "ducksemantics_bebel_tool_judgment_parser", package = "ducksemantics",
+  properties = list(tool_name = S7::new_union(NULL, S7::class_character))
 )
-
-# Internal typed hand-off between the strict S7 parser contract and a BebeLM
-# repair turn. It is intentionally not a permissive alternate response shape.
-ducksemantics_judgment_parse_error_class <- S7::new_class(
-  "ducksemantics_judgment_parse_error",
-  package = "ducksemantics",
-  properties = list(
-    message = ducksemantics_text_property,
-    response = ducksemantics_text_property
-  )
-)
-
 ducksemantics_lexical_annotator_class <- S7::new_class(
-  "ducksemantics_lexical_annotator",
-  package = "ducksemantics"
+  "ducksemantics_lexical_annotator", package = "ducksemantics"
 )
 
-#' Wrap a prompt function as a typed prompt runner
-#'
-#' @param fun Function accepting `prompt` and returning response text.
-#' @param label Provider label for reports.
+#' Wrap a prompt function as a prompt provider
+#' @param fun Function accepting a prompt and returning response text.
+#' @param label Provider identity.
 #' @return An object implementing [DucksemanticsPromptRunner].
 #' @export
 ducksemantics_prompt_runner <- function(fun, label = "function") {
   if (!is.function(fun)) stop("`fun` must be a function.", call. = FALSE)
-  S7::prop(DucksemanticsScalarText(value = label), "value")
+  ducksemantics_require_text(label, "label")
   ducksemantics_function_prompt_runner_class(fun = fun, label = label)
 }
 
-#' Wrap an embedding function as a typed embedding provider
-#'
-#' @param fun Function accepting a character vector and returning a numeric
-#'   matrix with one row per input text.
-#' @param label Provider label for reports.
+#' Wrap an embedding function as an embedding provider
+#' @inheritParams ducksemantics_prompt_runner
 #' @return An object implementing [DucksemanticsEmbeddingProvider].
 #' @export
 ducksemantics_embedding_provider <- function(fun, label = "function") {
   if (!is.function(fun)) stop("`fun` must be a function.", call. = FALSE)
-  S7::prop(DucksemanticsScalarText(value = label), "value")
+  ducksemantics_require_text(label, "label")
   ducksemantics_function_embedding_provider_class(fun = fun, label = label)
 }
 
-#' Wrap a token embedding function as a typed token provider
-#'
-#' @param fun Function accepting a character vector and returning one
-#'   token-embedding object per input text.
-#' @param label Provider label for stored token rows.
-#' @return An object implementing `DucksemanticsTokenEmbeddingProvider`.
+#' Wrap a token embedding function as a token provider
+#' @inheritParams ducksemantics_prompt_runner
+#' @return An object implementing [DucksemanticsTokenEmbeddingProvider].
 #' @export
 ducksemantics_token_embedding_provider <- function(fun, label = "function-token") {
   if (!is.function(fun)) stop("`fun` must be a function.", call. = FALSE)
-  S7::prop(DucksemanticsScalarText(value = label), "value")
+  ducksemantics_require_text(label, "label")
   ducksemantics_function_token_embedding_provider_class(fun = fun, label = label)
 }
 
-#' Create an EmbeddingGemma dense retrieval provider
-#'
-#' @param model A `Rbebelm` `EmbeddingGemmaModel` object.
-#' @param label Provider label for stored dense vectors.
-#' @param task EmbeddingGemma task prompt. Use the same task for vectors that
-#'   will be compared; use the dedicated query/document tasks only as a matched
-#'   retrieval pair.
-#' @param title Optional document title, valid only for `retrieval_document`.
-#' @param dimensions Matryoshka dimension: 768, 512, 256, or 128.
+#' Create an EmbeddingGemma provider
+#' @param model An `Rbebelm` `EmbeddingGemmaModel`.
+#' @param label Provider identity.
+#' @param task EmbeddingGemma task.
+#' @param title Optional document title.
+#' @param dimensions Matryoshka dimension.
 #' @param normalize L2-normalize output rows.
-#' @param truncate Truncate inputs longer than EmbeddingGemma's context.
-#' @param check_interrupt Poll for R interrupts between bounded native batches.
+#' @param truncate Truncate overly long input.
+#' @param check_interrupt Poll for R interrupts.
 #' @return An object implementing [DucksemanticsEmbeddingProvider].
 #' @export
-ducksemantics_embeddinggemma_provider <- function(model,
-                                                  label = "Rbebelm EmbeddingGemma",
-                                                  task = "semantic_similarity",
-                                                  title = NULL,
-                                                  dimensions = 768L,
-                                                  normalize = TRUE,
-                                                  truncate = TRUE,
-                                                  check_interrupt = TRUE) {
-  if (!requireNamespace("Rbebelm", quietly = TRUE)) {
-    stop("Rbebelm is required for the EmbeddingGemma provider.", call. = FALSE)
-  }
-  ducksemantics_embeddinggemma_provider_class(
-    model = model,
-    label = label,
-    task = task,
-    title = title,
-    dimensions = dimensions,
-    normalize = normalize,
-    truncate = truncate,
-    check_interrupt = check_interrupt
-  )
+ducksemantics_embeddinggemma_provider <- function(model, label = "Rbebelm EmbeddingGemma",
+                                                  task = "semantic_similarity", title = NULL,
+                                                  dimensions = 768L, normalize = TRUE,
+                                                  truncate = TRUE, check_interrupt = TRUE) {
+  if (!requireNamespace("Rbebelm", quietly = TRUE)) stop("Rbebelm is required for the EmbeddingGemma provider.", call. = FALSE)
+  ducksemantics_require_text(label, "label")
+  if (!task %in% c("retrieval_query", "retrieval_document", "question_answering",
+      "fact_verification", "classification", "clustering", "semantic_similarity",
+      "code_retrieval", "summarization", "raw")) stop("`task` must be an EmbeddingGemma task.", call. = FALSE)
+  if (!is.null(title) && !identical(task, "retrieval_document")) stop("`title` is valid only for retrieval_document.", call. = FALSE)
+  if (!dimensions %in% c(768, 512, 256, 128)) stop("`dimensions` must be 768, 512, 256, or 128.", call. = FALSE)
+  ducksemantics_embeddinggemma_provider_class(model = model, label = label, task = task,
+    title = title, dimensions = as.numeric(dimensions), normalize = ducksemantics_require_flag(normalize, "normalize"),
+    truncate = ducksemantics_require_flag(truncate, "truncate"), check_interrupt = ducksemantics_require_flag(check_interrupt, "check_interrupt"))
 }
 
-#' Create a native ColBERT token-vector provider
-#'
-#' `role = "document"` is for ontology labels, definitions, and candidate
-#' passages stored in DuckDB. `role = "query"` is for text being searched. The
-#' native encoder owns the distinct prefixes, token limits, projection, and L2
-#' normalization required by the model; no causal BebeLM hidden states are used.
-#'
-#' @param model A `Rbebelm` `ColbertModel` object.
-#' @param role Whether this provider encodes retrieval `"query"` or
-#'   `"document"` text.
-#' @param label Provider label. Document rows and their query must share it.
+#' Create a native ColBERT provider
+#' @param model An `Rbebelm` `ColbertModel`.
+#' @param role Query or document encoding role.
+#' @param label Provider identity.
 #' @return An object implementing [DucksemanticsTokenEmbeddingProvider].
 #' @export
-ducksemantics_colbert_provider <- function(model,
-                                           role = c("document", "query"),
+ducksemantics_colbert_provider <- function(model, role = c("document", "query"),
                                            label = "Rbebelm ColBERT") {
-  if (!requireNamespace("Rbebelm", quietly = TRUE)) {
-    stop("Rbebelm is required for the ColBERT provider.", call. = FALSE)
-  }
-  ducksemantics_colbert_provider_class(
-    model = model,
-    role = match.arg(role),
-    label = label
-  )
+  if (!requireNamespace("Rbebelm", quietly = TRUE)) stop("Rbebelm is required for the ColBERT provider.", call. = FALSE)
+  ducksemantics_colbert_provider_class(model = model, role = match.arg(role),
+    label = ducksemantics_require_text(label, "label"))
 }
 
-#' Construct a ColBERT late-interaction query
-#'
-#' Encodes text with the profile's query contract and returns a query object
-#' directly consumable by [ducksemantics_late_interaction_search()]. Candidate
-#' blocks must have been stored from a ColBERT document provider with the same
-#' `label`.
-#'
-#' @param model A `Rbebelm` `ColbertModel` object.
-#' @param text Non-empty query text.
-#' @param provider Stored document provider label.
-#' @param subject_kind Optional candidate subject-kind filter.
-#' @param top_k Number of candidate blocks to return.
-#' @param table Optional token-embedding table.
-#' @param candidate_subject_id Optional candidate subject identifiers.
-#' @return A [DucksemanticsTokenEmbeddingQuery].
-#' @export
-ducksemantics_colbert_query <- function(model,
-                                        text,
-                                        provider = "Rbebelm ColBERT",
-                                        subject_kind = NULL,
-                                        top_k = 10L,
-                                        table = NULL,
-                                        candidate_subject_id = NULL) {
-  if (!requireNamespace("Rbebelm", quietly = TRUE)) {
-    stop("Rbebelm is required for the ColBERT query encoder.", call. = FALSE)
-  }
-  if (!is.character(text) || length(text) != 1L || is.na(text) || !nzchar(text)) {
-    stop("`text` must be a non-empty character scalar.", call. = FALSE)
-  }
-  query <- Rbebelm::colbert_encode_query(model, text)
-  ducksemantics_token_embedding_query(
-    embeddings = Rbebelm::colbert_embedding_vectors(query),
-    provider = provider,
-    subject_kind = subject_kind,
-    top_k = top_k,
-    table = table,
-    candidate_subject_id = candidate_subject_id
-  )
-}
-
-#' Create the default JSON judgment parser
-#'
+#' Create a JSON judgment parser
 #' @return An object implementing [DucksemanticsJudgmentParser].
 #' @export
-ducksemantics_json_judgment_parser <- function() {
-  ducksemantics_json_judgment_parser_class()
-}
+ducksemantics_json_judgment_parser <- function() ducksemantics_json_judgment_parser_class()
 
 #' Create a BebeLM tool-call judgment parser
-#'
-#' @param tool_name Optional accepted tool-call name or names.
+#' @param tool_name Accepted tool-call names, or `NULL`.
 #' @return An object implementing [DucksemanticsJudgmentParser].
 #' @export
 ducksemantics_bebel_tool_judgment_parser <- function(tool_name = NULL) {
   if (!is.null(tool_name) && (!is.character(tool_name) || anyNA(tool_name) || any(!nzchar(tool_name)))) {
-    stop("`tool_name` must be NULL or a character vector of non-empty names.", call. = FALSE)
+    stop("`tool_name` must be NULL or non-empty character names.", call. = FALSE)
   }
   ducksemantics_bebel_tool_judgment_parser_class(tool_name = tool_name)
 }
 
-#' Create the default DuckDB lexical annotator
-#'
+#' Create the default lexical grounding provider
 #' @return An object implementing [DucksemanticsAnnotator].
 #' @export
-ducksemantics_lexical_annotator <- function() {
-  ducksemantics_lexical_annotator_class()
-}
+ducksemantics_lexical_annotator <- function() ducksemantics_lexical_annotator_class()
 
 S7::method(ducksemantics_run, ducksemantics_function_prompt_runner_class) <- function(provider, prompt, ...) {
-  S7::prop(DucksemanticsScalarText(value = prompt), "value")
-  ducksemantics_response_text(provider@fun(prompt, ...))
+  ducksemantics_response_text(provider@fun(ducksemantics_require_text(prompt, "prompt"), ...))
 }
-
 S7::method(ducksemantics_run, ducksemantics_bebel_runner_class) <- function(provider, prompt, ...) {
-  S7::prop(DucksemanticsScalarText(value = prompt), "value")
-  if (!requireNamespace("Rbebelm", quietly = TRUE)) {
-    stop("Rbebelm is required for BebeLM judgment.", call. = FALSE)
-  }
-  Rbebelm::bebel_append_user(provider@agent, prompt)
-  turn <- Rbebelm::bebel_assistant_turn(provider@agent, on_event = provider@on_event)
-  ducksemantics_response_text(turn)
+  if (!requireNamespace("Rbebelm", quietly = TRUE)) stop("Rbebelm is required for BebeLM judgment.", call. = FALSE)
+  Rbebelm::bebel_append_user(provider@agent, ducksemantics_require_text(prompt, "prompt"))
+  ducksemantics_response_text(Rbebelm::bebel_assistant_turn(provider@agent, on_event = provider@on_event))
 }
-
 S7::method(ducksemantics_embed, ducksemantics_function_embedding_provider_class) <- function(provider, text, ...) {
-  if (!is.character(text) || anyNA(text)) {
-    stop("`text` must be a character vector without NA.", call. = FALSE)
-  }
-  out <- provider@fun(text, ...)
-  if (is.data.frame(out)) out <- as.matrix(out)
-  S7::prop(DucksemanticsEmbeddingMatrix(embeddings = out, rows = length(text)), "embeddings")
+  if (!is.character(text) || anyNA(text)) stop("`text` must be a character vector without NA.", call. = FALSE)
+  ducksemantics_require_matrix(provider@fun(text, ...), "provider result", length(text))
 }
-
 S7::method(ducksemantics_embed, ducksemantics_embeddinggemma_provider_class) <- function(provider, text, ...) {
-  if (!is.character(text) || anyNA(text)) {
-    stop("`text` must be a character vector without NA.", call. = FALSE)
-  }
-  out <- Rbebelm::embeddinggemma_embed(
-    provider@model,
-    text,
-    task = provider@task,
-    title = provider@title,
-    dimensions = provider@dimensions,
-    normalize = provider@normalize,
-    truncate = provider@truncate,
-    check_interrupt = provider@check_interrupt
-  )
-  S7::prop(DucksemanticsEmbeddingMatrix(embeddings = out, rows = length(text)), "embeddings")
+  if (!is.character(text) || anyNA(text)) stop("`text` must be a character vector without NA.", call. = FALSE)
+  ducksemantics_require_matrix(Rbebelm::embeddinggemma_embed(provider@model, text,
+    task = provider@task, title = provider@title, dimensions = provider@dimensions,
+    normalize = provider@normalize, truncate = provider@truncate,
+    check_interrupt = provider@check_interrupt), "provider result", length(text))
 }
-
 S7::method(ducksemantics_token_embed, ducksemantics_function_token_embedding_provider_class) <- function(provider, text, ...) {
-  if (!is.character(text) || anyNA(text)) {
-    stop("`text` must be a character vector without NA.", call. = FALSE)
-  }
+  if (!is.character(text) || anyNA(text)) stop("`text` must be a character vector without NA.", call. = FALSE)
   out <- provider@fun(text, ...)
-  if (!is.list(out) || length(out) != length(text)) {
-    stop("Token embedding providers must return one object per input text.", call. = FALSE)
-  }
+  if (!is.list(out) || length(out) != length(text)) stop("Token embedding providers must return one object per input text.", call. = FALSE)
   out
 }
-
 S7::method(ducksemantics_token_embed, ducksemantics_colbert_provider_class) <- function(provider, text, ...) {
-  if (!is.character(text) || anyNA(text) || any(!nzchar(text))) {
-    stop("`text` must be a non-empty character vector without NA.", call. = FALSE)
-  }
+  if (!is.character(text) || anyNA(text) || any(!nzchar(text))) stop("`text` must be a non-empty character vector without NA.", call. = FALSE)
   lapply(text, function(one) {
-    encoded <- if (identical(provider@role, "query")) {
-      Rbebelm::colbert_encode_query(provider@model, one)
-    } else {
-      Rbebelm::colbert_encode_document(provider@model, one)
-    }
+    encoded <- if (identical(provider@role, "query")) Rbebelm::colbert_encode_query(provider@model, one) else Rbebelm::colbert_encode_document(provider@model, one)
     ids <- Rbebelm::colbert_embedding_ids(encoded)
-    list(
-      embeddings = Rbebelm::colbert_embedding_vectors(encoded),
-      token_index = seq_along(ids) - 1L,
-      tokens = paste0("token_id:", ids)
-    )
+    list(embeddings = Rbebelm::colbert_embedding_vectors(encoded), token_index = seq_along(ids) - 1L,
+      tokens = paste0("token_id:", ids))
   })
 }
-
-#' Cache provider embeddings in durable chunks
-#'
-#' This cache is used for large ontology passes. Each chunk is written after it
-#' finishes, so interrupted runs can resume without discarding completed native
-#' retrieval-encoder work.
-#'
-#' @param text Character vector to embed.
-#' @param provider Object implementing [DucksemanticsEmbeddingProvider].
-#' @param cache_dir Directory for chunk RDS files.
-#' @param chunk_size Number of texts per persisted chunk.
-#' @param refresh Recompute all chunks?
-#' @param cache_key Optional stable identifier for provider weights or other
-#'   state that is not represented by the provider object. Changing it
-#'   invalidates existing chunks.
-#' @param ... Extra arguments passed to [ducksemantics_embed()]. These arguments
-#'   are included in the cache identity.
-#' @return Numeric embedding matrix with one row per input text.
-#' @export
-ducksemantics_embed_cached <- function(text,
-                                       provider,
-                                       cache_dir,
-                                       chunk_size = 4096L,
-                                       refresh = FALSE,
-                                       cache_key = NULL,
-                                       ...) {
-  if (!is.character(text) || anyNA(text)) {
-    stop("`text` must be a character vector without NA.", call. = FALSE)
-  }
-  if (!length(text)) {
-    stop("`text` must contain at least one value.", call. = FALSE)
-  }
-  spec <- ducksemantics_embedding_cache_spec_class(
-    cache_dir = cache_dir,
-    chunk_size = chunk_size,
-    refresh = refresh
-  )
-  cache_dir <- spec@cache_dir
-  chunk_size <- as.integer(spec@chunk_size)
-  refresh <- spec@refresh
-
-  if (dir.exists(cache_dir) && isTRUE(refresh)) {
-    managed <- c(
-      file.path(cache_dir, "manifest.rds"),
-      list.files(cache_dir, pattern = "^chunk-[0-9]+[.]rds$", full.names = TRUE)
-    )
-    unlink(managed, force = TRUE)
-  }
-  if (file.exists(cache_dir) && !dir.exists(cache_dir)) {
-    stop("`cache_dir` exists and is not a directory.", call. = FALSE)
-  }
-  if (!dir.exists(cache_dir)) {
-    dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
-  }
-
-  if (!is.null(cache_key)) {
-    S7::prop(DucksemanticsScalarText(value = cache_key), "value")
-  }
-  dots <- list(...)
-  contract <- list(
-    version = 2L,
-    n = length(text),
-    chunk_size = chunk_size,
-    text = ducksemantics_cache_fingerprint(text),
-    provider = ducksemantics_provider_cache_identity(provider),
-    arguments = ducksemantics_cache_fingerprint(dots),
-    cache_key = cache_key
-  )
-  manifest_path <- file.path(cache_dir, "manifest.rds")
-  manifest <- if (file.exists(manifest_path)) {
-    tryCatch(readRDS(manifest_path), error = function(error) NULL)
-  } else {
-    NULL
-  }
-  if (!is.list(manifest) || !identical(manifest$contract, contract)) {
-    unlink(list.files(cache_dir, pattern = "^chunk-[0-9]+[.]rds$", full.names = TRUE), force = TRUE)
-    manifest <- NULL
-  }
-
-  starts <- seq.int(1L, length(text), by = chunk_size)
-  paths <- file.path(cache_dir, sprintf("chunk-%05d.rds", seq_along(starts)))
-  chunks <- vector("list", length(starts))
-  for (i in seq_along(starts)) {
-    idx <- starts[[i]]:min(length(text), starts[[i]] + chunk_size - 1L)
-    path <- paths[[i]]
-    chunk_key <- ducksemantics_cache_fingerprint(list(contract, i = i, text = text[idx]))
-    cached <- if (file.exists(path)) {
-      tryCatch(readRDS(path), error = function(error) NULL)
-    } else {
-      NULL
-    }
-    if (is.list(cached) && identical(cached$key, chunk_key) && !is.null(cached$embeddings)) {
-      chunk <- cached$embeddings
-    } else {
-      chunk <- do.call(
-        ducksemantics_embed,
-        c(list(provider = provider, text = text[idx]), dots)
-      )
-      ducksemantics_atomic_save_rds(list(key = chunk_key, embeddings = chunk), path)
-    }
-    chunks[[i]] <- S7::prop(
-      DucksemanticsEmbeddingMatrix(embeddings = chunk, rows = length(idx)),
-      "embeddings"
-    )
-  }
-
-  out <- do.call(rbind, chunks)
-  ducksemantics_atomic_save_rds(
-    list(contract = contract, chunks = basename(paths), dimensions = dim(out)),
-    manifest_path
-  )
-  out
-}
-
-ducksemantics_cache_fingerprint <- function(value) {
-  path <- tempfile("ducksemantics-cache-fingerprint-", fileext = ".rds")
-  on.exit(unlink(path, force = TRUE), add = TRUE)
-  saveRDS(value, path, version = 3L)
-  unname(tools::md5sum(path))
-}
-
-ducksemantics_provider_cache_identity <- function(provider) {
-  if (S7::S7_inherits(provider, ducksemantics_embeddinggemma_provider_class)) {
-    model <- tryCatch(
-      Rbebelm::embeddinggemma_model_info(provider@model),
-      error = function(error) list()
-    )
-    if (!is.null(model$path) && file.exists(model$path)) {
-      info <- file.info(model$path)
-      model$file_size <- unname(info$size)
-      model$modified <- format(info$mtime, tz = "UTC", usetz = TRUE)
-    }
-    identity <- list(
-      class = class(provider),
-      label = provider@label,
-      task = provider@task,
-      title = provider@title,
-      dimensions = provider@dimensions,
-      normalize = provider@normalize,
-      truncate = provider@truncate,
-      model = model
-    )
-  } else if (S7::S7_inherits(provider, ducksemantics_function_embedding_provider_class)) {
-    identity <- list(
-      class = class(provider),
-      label = provider@label,
-      formals = formals(provider@fun),
-      body = body(provider@fun)
-    )
-  } else {
-    identity <- provider
-  }
-  ducksemantics_cache_fingerprint(identity)
-}
-
 S7::method(ducksemantics_parse, ducksemantics_json_judgment_parser_class) <- function(parser, response, ...) {
-  parsed <- ducksemantics_parse_json_response(response)
-  parsed <- ducksemantics_normalize_judgment_payload(parsed)
-  S7::prop(DucksemanticsTable(value = parsed, required = character(), allow_empty = TRUE), "value")
+  parsed <- ducksemantics_normalize_judgment_payload(ducksemantics_parse_json_response(response))
+  ducksemantics_require_data_frame(parsed, "parsed")
 }
-
 S7::method(ducksemantics_parse, ducksemantics_bebel_tool_judgment_parser_class) <- function(parser, response, ...) {
-  if (!requireNamespace("Rbebelm", quietly = TRUE)) {
-    stop("Rbebelm is required to parse BebeLM tool calls.", call. = FALSE)
-  }
+  if (!requireNamespace("Rbebelm", quietly = TRUE)) stop("Rbebelm is required to parse BebeLM tool calls.", call. = FALSE)
   blocks <- ducksemantics_bebel_tool_blocks(response)
-  calls <- tryCatch(
-    ducksemantics_parse_bebel_tool_call_blocks(blocks),
-    error = function(e) list()
-  )
-  if (length(calls)) {
-    if (!is.null(parser@tool_name)) {
-      keep <- vapply(calls, function(call) call$name %in% parser@tool_name, logical(1))
-      calls <- calls[keep]
-    }
-    if (length(calls)) {
-      rows <- lapply(calls, function(call) call$arguments)
-      return(ducksemantics_lists_to_data_frame(rows))
-    }
-  }
+  calls <- tryCatch(unlist(lapply(blocks, Rbebelm::bebel_parse_tool_calls), recursive = FALSE, use.names = FALSE), error = function(e) list())
+  if (!is.null(parser@tool_name) && length(calls)) calls <- calls[vapply(calls, function(x) x$name %in% parser@tool_name, logical(1))]
+  if (length(calls)) return(ducksemantics_lists_to_data_frame(lapply(calls, `[[`, "arguments")))
   ducksemantics_parse_json_candidates(c(blocks, response))
 }
-
-S7::method(ducksemantics_ground, ducksemantics_lexical_annotator_class) <- function(annotator,
-                                                                                    conn,
-                                                                                    text,
-                                                                                    document_id = NULL,
-                                                                                    prefix = "semantic",
-                                                                                    longest_match = TRUE,
-                                                                                    record = FALSE,
-                                                                                    ...) {
-  ducksemantics_annotate(
-    conn = conn,
-    text = text,
-    document_id = document_id,
-    prefix = prefix,
-    longest_match = longest_match,
-    record = record
-  )
-}
-
-ducksemantics_parse_bebel_tool_calls <- function(response) {
-  S7::prop(DucksemanticsScalarText(value = response), "value")
-  ducksemantics_parse_bebel_tool_call_blocks(ducksemantics_bebel_tool_blocks(response))
-}
-
-ducksemantics_parse_bebel_tool_call_blocks <- function(blocks) {
-  calls <- unlist(
-    lapply(blocks, Rbebelm::bebel_parse_tool_calls),
-    recursive = FALSE,
-    use.names = FALSE
-  )
-  calls
-}
-
-ducksemantics_parse_json_candidates <- function(candidates) {
-  for (candidate in candidates[nzchar(trimws(candidates))]) {
-    parsed <- try(ducksemantics_parse_json_response(candidate), silent = TRUE)
-    if (inherits(parsed, "try-error")) {
-      next
-    }
-    parsed <- ducksemantics_normalize_judgment_payload(parsed)
-    return(S7::prop(DucksemanticsTable(value = parsed, required = character(), allow_empty = TRUE), "value"))
-  }
-  stop("BebeLM response did not contain judgment tool calls or JSON.", call. = FALSE)
+S7::method(ducksemantics_ground, ducksemantics_lexical_annotator_class) <- function(annotator, conn, text,
+                                                                                    document_id = NULL, prefix = "semantic",
+                                                                                    longest_match = TRUE, record = FALSE, ...) {
+  ducksemantics_annotate(conn, text, document_id = document_id, prefix = prefix,
+    longest_match = longest_match, record = record)
 }
 
 ducksemantics_bebel_tool_blocks <- function(response) {
-  start_token <- "<|tool_call_start|>"
-  end_token <- "<|tool_call_end|>"
-  blocks <- character()
-  cursor <- 1L
-  repeat {
-    rest <- substring(response, cursor)
-    start <- regexpr(start_token, rest, fixed = TRUE)[[1L]]
-    if (identical(start, -1L)) break
-    content_start <- cursor + start + nchar(start_token, type = "chars") - 1L
-    after_start <- substring(response, content_start)
-    end <- regexpr(end_token, after_start, fixed = TRUE)[[1L]]
-    if (identical(end, -1L)) break
-    content_end <- content_start + end - 2L
-    blocks <- c(blocks, substring(response, content_start, content_end))
-    cursor <- content_end + nchar(end_token, type = "chars") + 1L
-  }
-  if (!length(blocks)) {
-    blocks <- trimws(response)
-  }
-  blocks[nzchar(trimws(blocks))]
+  response <- ducksemantics_require_text(response, "response")
+  pieces <- strsplit(response, "<\\|tool_call_start\\|>", perl = TRUE)[[1L]][-1L]
+  pieces <- sub("<\\|tool_call_end\\|>.*$", "", pieces, perl = TRUE)
+  pieces <- trimws(pieces)
+  if (!length(pieces) || !any(nzchar(pieces))) trimws(response) else pieces[nzchar(pieces)]
 }
-
+ducksemantics_parse_json_candidates <- function(candidates) {
+  for (candidate in candidates[nzchar(trimws(candidates))]) {
+    parsed <- try(ducksemantics_normalize_judgment_payload(ducksemantics_parse_json_response(candidate)), silent = TRUE)
+    if (!inherits(parsed, "try-error")) return(ducksemantics_require_data_frame(parsed, "parsed"))
+  }
+  stop("BebeLM response did not contain judgment tool calls or JSON.", call. = FALSE)
+}
 ducksemantics_lists_to_data_frame <- function(rows) {
   columns <- unique(unlist(lapply(rows, names), use.names = FALSE))
-  if (!length(columns)) {
-    return(data.frame())
-  }
-  out <- lapply(columns, function(column) {
-    vapply(rows, function(row) {
-      value <- row[[column]]
-      if (is.null(value) || length(value) == 0L || is.na(value[[1L]])) {
-        NA_character_
-      } else {
-        as.character(value[[1L]])
-      }
-    }, character(1))
-  })
+  if (!length(columns)) return(data.frame())
+  out <- lapply(columns, function(column) vapply(rows, function(row) {
+    value <- row[[column]]
+    if (is.null(value) || !length(value) || is.na(value[[1L]])) NA_character_ else as.character(value[[1L]])
+  }, character(1)))
   names(out) <- columns
   data.frame(out, stringsAsFactors = FALSE, check.names = FALSE)
 }

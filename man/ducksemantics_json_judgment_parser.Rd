@@ -2,7 +2,7 @@
 % Please edit documentation in R/interfaces.R
 \name{ducksemantics_json_judgment_parser}
 \alias{ducksemantics_json_judgment_parser}
-\title{Create the default JSON judgment parser}
+\title{Create a JSON judgment parser}
 \usage{
 ducksemantics_json_judgment_parser()
 }
@@ -10,5 +10,5 @@ ducksemantics_json_judgment_parser()
 An object implementing \link{DucksemanticsJudgmentParser}.
 }
 \description{
-Create the default JSON judgment parser
+Create a JSON judgment parser
 }

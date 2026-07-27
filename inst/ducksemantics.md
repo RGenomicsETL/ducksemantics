@@ -1,228 +1,58 @@
 # Ducksemantics Direction
 
-`ducksemantics` is the package. It owns a DuckDB-native semantic graph and
-grounding layer now: schema creation, graph writes, alias indexing, mention
-grounding, native DuckDB vector storage, native ColBERT token-vector storage,
-embedding clusters, closure SQL, typed model-provider interfaces, and benchmark
-measurement.
+**Current architecture:** ducksemantics owns ontology graphs, HPO extraction
+observations, typed release-cataloged Monarch gene/phenotype/disease relations,
+semantic and literature retrieval, source-grounded judgments, and real
+model/provider protocols. The source of truth is the source checkout's
+`ARCHITECTURE.md`.
 
-HPO, MONDO, ORPHANET, study notes, memory, run ledgers, and local concept maps
-are graph sources that project into the same tables. A future DuckDB extension
-can optimize hot paths, but the package API is not waiting on it.
+Bulk values are data frames or caller-owned DuckDB relations. S7 is reserved
+for genuine prompt, embedding, parser, and annotator protocols; it is not used
+for connections, relations, matrices, batches, queries, indexes, or clustering
+specifications.
 
-## Concrete Sources Being Abstracted
+## Relational boundaries
 
-The abstraction closes over these existing shapes:
+- Lexical ontology matching produces candidates only. Final HPO observations
+  have validated zero-based half-open spans, exact source text, contextual
+  status, provider provenance, confidence, and `status = "accepted"`.
+- Monarch facts are supplied by the caller with a typed catalog keyed by
+  `provider_id` and `release_id`. Catalog order is a `Date`/`POSIXct`
+  effective date or numeric source ordinal. Exact/as-of release queries and
+  holdouts retain provider/release identity.
+- `RClinVarbitration` owns append-only PubMed article and section events plus
+  the provider snapshot catalog. Literature retrieval binds a provider and an
+  exact source-order cutoff, selects each article's latest event at that
+  ordinal, drops latest deletion events, and joins only same-version sections.
+  It creates no literature table and does not load PubMed XML or bulk full
+  text.
+- RClinVarbitration owns ClinVar/PubMed source relations. VariantStory owns
+  case policy/ranking. VariantStoryBench owns evaluation.
 
-- Ontology label/synonym sources: aliases are normalized into a lexical index
-  and returned as text spans plus concept identifiers.
-- pi-bio-agent: `bio_edges`, `entailed_edge`, graph projection profiles,
-  ontology terms, memory links, and as-of observations are graph-as-SQL.
-- SemanticSQL: `statements`, `prefix`, generated `edge` views, and
-  `entailed_edge` provide an ontology interchange shape.
-- Rbebelm: EmbeddingGemma dense retrieval, native ColBERT late interaction,
-  and local BebeLM judgment can enrich, reject, or explain deterministic
-  candidates without owning the graph schema.
+## Graph and retrieval substrate
 
-## Core Tables
+The DuckDB graph remains `semantic_nodes`, `semantic_aliases`,
+`semantic_edges`, `semantic_entailed_edges`, `semantic_mentions`, and
+`semantic_judgments`. Dense and token embeddings are regular data-frame rows
+written to `semantic_embeddings` and `semantic_token_embeddings`; exact token
+MaxSim reranking is retained. Optional local Rbebelm providers remain genuine
+provider protocols, never mandatory remote services.
 
-The minimal graph/grounding contract is:
+## RClinVarbitration literature projection
 
-```sql
-semantic_nodes(
-  node_id TEXT PRIMARY KEY,
-  family TEXT NOT NULL,
-  label TEXT,
-  description TEXT,
-  attrs TEXT,
-  trust TEXT
-);
-
-semantic_aliases(
-  node_id TEXT NOT NULL,
-  alias TEXT NOT NULL,
-  alias_kind TEXT NOT NULL,
-  source TEXT,
-  weight DOUBLE,
-  attrs TEXT
-);
-
-semantic_alias_index(
-  node_id TEXT NOT NULL,
-  alias TEXT NOT NULL,
-  alias_kind TEXT NOT NULL,
-  source TEXT,
-  weight DOUBLE,
-  attrs TEXT,
-  normalized_alias TEXT NOT NULL,
-  token_count INTEGER NOT NULL
-);
-
-semantic_edges(
-  from_id TEXT NOT NULL,
-  predicate TEXT NOT NULL,
-  to_id TEXT NOT NULL,
-  attrs TEXT,
-  trust TEXT
-);
-
-semantic_entailed_edges(
-  from_id TEXT NOT NULL,
-  predicate TEXT NOT NULL,
-  to_id TEXT NOT NULL
-);
-
-semantic_mentions(
-  document_id TEXT,
-  mention_id TEXT NOT NULL,
-  node_id TEXT NOT NULL,
-  span TEXT NOT NULL,
-  start_offset INTEGER NOT NULL,
-  end_offset INTEGER NOT NULL,
-  score DOUBLE,
-  method TEXT NOT NULL,
-  attrs TEXT,
-  trust TEXT
-);
-
-semantic_judgments(
-  judgment_id TEXT NOT NULL,
-  subject_id TEXT NOT NULL,
-  predicate TEXT NOT NULL,
-  object_id TEXT,
-  value_json TEXT,
-  decision TEXT NOT NULL,
-  confidence DOUBLE,
-  evidence TEXT,
-  model TEXT,
-  recorded_at TIMESTAMP,
-  attrs TEXT
-);
-
-semantic_embeddings(
-  subject_id TEXT NOT NULL,
-  subject_kind TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  text TEXT,
-  dim INTEGER NOT NULL,
-  embedding FLOAT[],
-  attrs TEXT
-);
-
-semantic_token_embeddings(
-  block_id TEXT NOT NULL,
-  subject_id TEXT NOT NULL,
-  subject_kind TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  token_index INTEGER NOT NULL,
-  token TEXT,
-  start_offset INTEGER,
-  end_offset INTEGER,
-  dim INTEGER NOT NULL,
-  embedding FLOAT[],
-  attrs TEXT
-);
-
-semantic_embedding_clusters(
-  cluster_run_id TEXT NOT NULL,
-  subject_id TEXT NOT NULL,
-  subject_kind TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  dim INTEGER NOT NULL,
-  cluster_id INTEGER NOT NULL,
-  distance DOUBLE,
-  text TEXT,
-  attrs TEXT
-);
-
-semantic_embedding_centroids(
-  cluster_run_id TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  subject_kind TEXT NOT NULL,
-  dim INTEGER NOT NULL,
-  cluster_id INTEGER NOT NULL,
-  size INTEGER NOT NULL,
-  embedding FLOAT[],
-  attrs TEXT
-);
-```
-
-`semantic_token_embeddings` stores native ColBERT document token matrices for
-exact MaxSim. The EmbeddingGemma path in `semantic_embeddings` remains the
-cheap broad-rank layer; ColBERT reranks candidate blocks when lexical, graph,
-or dense retrieval needs finer evidence. DuckDB VSS/HNSW indexes the dense
-fixed-size vectors only; it is not a ColBERT late-interaction index.
-
-## Interfaces
-
-Provider extension points are structural S7 interfaces, following the
-`s7contract` style:
-
-- `DucksemanticsAnnotator`: grounds text against a semantic store.
-- `DucksemanticsPromptRunner`: sends a prompt to a model and returns text.
-- `DucksemanticsJudgmentParser`: parses model text into judgment rows.
-- `DucksemanticsEmbeddingProvider`: maps text to a numeric dense embedding
-  matrix, with EmbeddingGemma as the native provider.
-
-Concrete providers can be BebeLM/Rbebelm, a test fixture, a cloud model, a
-future Rust index, or a different local embedding model. The consuming code
-depends on the interface, not the provider.
-
-Store/query specs are S7 structs with property validators:
-
-- `DucksemanticsEmbeddingBatch`: rows to store in `semantic_embeddings`.
-- `DucksemanticsTokenEmbeddingBatch`: native ColBERT document-token rows
-  grouped by `block_id` for late-interaction scoring.
-- `DucksemanticsTokenEmbeddingQuery`: query token matrix and filters for exact
-  MaxSim reranking over stored token blocks.
-- `DucksemanticsEmbeddingQuery`: vector search request over DuckDB arrays.
-- `DucksemanticsEmbeddingIndexSpec`: fixed-dimension materialized table and
-  optional HNSW index request.
-- `DucksemanticsEmbeddingClusterSpec`: k-means run over a provider/dimension
-  slice, with assignments and centroids stored in DuckDB.
-
-## HPO/MONDO/ORPHANET Role
-
-The old HPO-specific functions become import profiles and benchmark suites, not
-the public abstraction:
+Literature retrieval directly consumes this read-only append-only projection:
 
 ```text
-hp.obo              -> semantic_nodes + semantic_aliases + semantic_edges
-mondo.obo           -> semantic_nodes + semantic_aliases + semantic_edges
-orphanet product1   -> semantic_nodes + semantic_aliases + semantic_edges
-SemanticSQL SQLite  -> statements/prefix/edge -> semantic_* / bio_edges
-pi-bio graph tables -> semantic_* or direct bio_edges projection
+snapshots: provider_id, snapshot_id, high_water_ordinal, effective_at
+articles:  provider_id, article_id, pmid, version_id, source_ordinal, is_deleted
+sections:  provider_id, article_id, pmid, version_id, source_ordinal, section, text
 ```
 
-The stable API is graph-first:
-
-```r
-ducksemantics_schema_sql()
-ducksemantics_init()
-ducksemantics_write_graph()
-ducksemantics_index_aliases()
-ducksemantics_annotate()
-ducksemantics_embedding_batch(...) |> ducksemantics_write_embeddings(conn)
-ducksemantics_embedding_query(...) |> ducksemantics_embedding_search(conn)
-ducksemantics_token_embedding_batch_from_provider(...) |> ducksemantics_write_token_embeddings(conn)
-ducksemantics_token_embedding_query(...) |> ducksemantics_late_interaction_search(conn)
-ducksemantics_embedding_cluster_spec(...) |> ducksemantics_cluster_embeddings(conn)
-ducksemantics_embedding_cluster_graph_agreement(conn, cluster_run_id)
-ducksemantics_judge()
-suite |> ducksemantics_benchmark(conn)
-```
-
-## Benchmarking
-
-Benchmarking belongs to the package API. It should measure deterministic
-candidate generation, graph coverage, synonym handling, memory pressure,
-latency, embedding cost, embedding cluster structure, and model-assisted
-judgment. The lexical DuckDB matcher sets the transparent floor; benchmark
-failures decide where synonym expansion, dense retrieval, ColBERT reranking,
-negation, uncertainty, and family-history adjudication actually improve HPO and
-MONDO tasks.
-
-Benchmark results carry suite/task/source/version metadata, per-case metrics,
-aggregate throughput, index statistics, and package-version provenance. That is
-the minimum paper-grade record: the cases, graph build, candidate generator,
-model provider, and measured runtime must be inspectable from the result object.
+`high_water_ordinal` and `source_ordinal` are finite integers;
+`effective_at` is optional `POSIXct`; `is_deleted` is logical. At a cataloged
+provider/snapshot, `ducksemantics` chooses the greatest article
+`source_ordinal` not exceeding `high_water_ordinal`, drops that article if the
+selected event is deleted, then joins sections on the complete version key.
+The relations map read-only from RClinVarbitration's `pubmed_sources`,
+`pubmed_articles`, and `pubmed_abstracts` relations and are never copied into
+package-owned storage.

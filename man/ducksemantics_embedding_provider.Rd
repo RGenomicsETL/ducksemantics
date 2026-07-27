@@ -2,19 +2,18 @@
 % Please edit documentation in R/interfaces.R
 \name{ducksemantics_embedding_provider}
 \alias{ducksemantics_embedding_provider}
-\title{Wrap an embedding function as a typed embedding provider}
+\title{Wrap an embedding function as an embedding provider}
 \usage{
 ducksemantics_embedding_provider(fun, label = "function")
 }
 \arguments{
-\item{fun}{Function accepting a character vector and returning a numeric
-matrix with one row per input text.}
+\item{fun}{Function accepting a prompt and returning response text.}
 
-\item{label}{Provider label for reports.}
+\item{label}{Provider identity.}
 }
 \value{
 An object implementing \link{DucksemanticsEmbeddingProvider}.
 }
 \description{
-Wrap an embedding function as a typed embedding provider
+Wrap an embedding function as an embedding provider
 }

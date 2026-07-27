@@ -2,11 +2,10 @@
 % Please edit documentation in R/interfaces.R
 \name{DucksemanticsAnnotator}
 \alias{DucksemanticsAnnotator}
-\title{Structural interface for text annotators}
+\title{Grounding-provider protocol}
 \usage{
 DucksemanticsAnnotator
 }
 \description{
-An annotator grounds text against the semantic store and returns mention
-rows. The default implementation is the DuckDB lexical alias index.
+Grounding-provider protocol
 }

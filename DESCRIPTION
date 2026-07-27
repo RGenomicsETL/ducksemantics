@@ -1,6 +1,6 @@
 Package: ducksemantics
 Type: Package
-Title: DuckDB-Native Semantic Graph Grounding
+Title: DuckDB-Native Semantic and Retrieval Relations
 Version: 0.1.0
 Authors@R: c(
     person(given = "Sounkou Mahamane", family = "Toure",
@@ -8,12 +8,13 @@ Authors@R: c(
     person(given = "Human Phenotype Ontology", role = "cph",
            comment = "Bundled README fixture (CC BY 4.0)")
     )
-Description: DuckDB-native semantic graph grounding over arbitrary concept
-    graphs. The package owns graph schema creation, alias indexing, lexical
-    mention grounding, transitive graph closure, 'EmbeddingGemma' dense
-    retrieval, 'ColBERT' late interaction, and 'BebeLM' judgment prompts.
-    HPO, MONDO, ORPHANET, memory graphs, and run ledgers are graph sources, not
-    special package APIs.
+Description: DuckDB-native ontology graphs, validated Human Phenotype Ontology
+    (HPO) observations, typed release-cataloged Monarch relations,
+    provider/snapshot-catalog-bound literature retrieval, and source-grounded
+    semantic judgments. Bulk values are ordinary relations; optional S7
+    protocols are reserved for real prompt, embedding, parser, and annotator
+    providers. The package does not store ClinVar or PubMed source data, rank
+    cases, or evaluate benchmarks.
 License: MIT + file LICENSE
 URL: https://github.com/sounkou-bioinfo/ducksemantics, https://sounkou-bioinfo.github.io/ducksemantics/
 BugReports: https://github.com/sounkou-bioinfo/ducksemantics/issues

@@ -2,7 +2,7 @@
 % Please edit documentation in R/interfaces.R
 \name{ducksemantics_colbert_provider}
 \alias{ducksemantics_colbert_provider}
-\title{Create a native ColBERT token-vector provider}
+\title{Create a native ColBERT provider}
 \usage{
 ducksemantics_colbert_provider(
   model,
@@ -11,19 +11,15 @@ ducksemantics_colbert_provider(
 )
 }
 \arguments{
-\item{model}{A \code{Rbebelm} \code{ColbertModel} object.}
+\item{model}{An \code{Rbebelm} \code{ColbertModel}.}
 
-\item{role}{Whether this provider encodes retrieval \code{"query"} or
-\code{"document"} text.}
+\item{role}{Query or document encoding role.}
 
-\item{label}{Provider label. Document rows and their query must share it.}
+\item{label}{Provider identity.}
 }
 \value{
 An object implementing \link{DucksemanticsTokenEmbeddingProvider}.
 }
 \description{
-\code{role = "document"} is for ontology labels, definitions, and candidate
-passages stored in DuckDB. \code{role = "query"} is for text being searched. The
-native encoder owns the distinct prefixes, token limits, projection, and L2
-normalization required by the model; no causal BebeLM hidden states are used.
+Create a native ColBERT provider
 }

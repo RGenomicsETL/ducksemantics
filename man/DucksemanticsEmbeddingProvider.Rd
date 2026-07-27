@@ -2,11 +2,10 @@
 % Please edit documentation in R/interfaces.R
 \name{DucksemanticsEmbeddingProvider}
 \alias{DucksemanticsEmbeddingProvider}
-\title{Structural interface for embedding providers}
+\title{Embedding-provider protocol}
 \usage{
 DucksemanticsEmbeddingProvider
 }
 \description{
-An embedding provider accepts a character vector and returns a numeric matrix
-with one row per input text.
+Embedding-provider protocol
 }

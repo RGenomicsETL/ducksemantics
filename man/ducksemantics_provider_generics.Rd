@@ -7,7 +7,7 @@
 \alias{ducksemantics_token_embed}
 \alias{ducksemantics_parse}
 \alias{ducksemantics_ground}
-\title{Provider interface generics}
+\title{Provider protocol generics}
 \usage{
 ducksemantics_run(provider, prompt, ...)
 
@@ -39,27 +39,24 @@ ducksemantics_ground(
 
 \item{parser}{Judgment parser.}
 
-\item{response}{Raw model response text.}
+\item{response}{Raw response text.}
 
-\item{annotator}{Text-grounding provider.}
+\item{annotator}{Grounding provider.}
 
 \item{conn}{DBI connection.}
 
-\item{document_id}{Optional document id.}
+\item{document_id}{Optional document identifier.}
 
-\item{prefix}{Semantic table prefix.}
+\item{prefix}{Semantic-table prefix.}
 
-\item{longest_match}{Drop matches contained by a longer span.}
+\item{longest_match}{Drop nested lexical candidates.}
 
-\item{record}{Append returned rows to the semantic store?}
+\item{record}{Persist candidates.}
 }
 \value{
-Provider-specific output: response text, embedding matrix, parsed
-judgment data frame, or grounded mention data frame.
+Provider-specific text, matrix, or data frame.
 }
 \description{
-These S7 generics are the behavior required by the structural interfaces.
-Provider packages should define concrete S7 classes and methods for these
-generics, then consuming code can assert the corresponding \verb{Ducksemantics*}
-interface.
+These S7 generics are reserved for real pluggable providers. All bulk input
+and output remains an ordinary data frame or matrix.
 }

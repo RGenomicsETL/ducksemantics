@@ -1,8 +1,9 @@
-#' DuckDB-native semantic graph grounding
+#' DuckDB-native semantic and retrieval relations
 #'
-#' `ducksemantics` owns a small graph-as-SQL substrate for semantic grounding:
-#' graph tables, alias indexes, mention extraction, transitive closure, and
-#' model judgment prompts over deterministic candidates.
+#' `ducksemantics` owns ontology graphs, validated HPO observations, typed
+#' release-cataloged Monarch relations, provider/snapshot-bound literature
+#' retrieval, source-grounded judgments, and genuine model/provider protocols.
+#' Bulk values are ordinary relations; evaluation belongs to `VariantStoryBench`.
 #'
 #' @keywords internal
 "_PACKAGE"

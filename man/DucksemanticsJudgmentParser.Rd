@@ -2,11 +2,10 @@
 % Please edit documentation in R/interfaces.R
 \name{DucksemanticsJudgmentParser}
 \alias{DucksemanticsJudgmentParser}
-\title{Structural interface for judgment parsers}
+\title{Judgment-parser provider protocol}
 \usage{
 DucksemanticsJudgmentParser
 }
 \description{
-A judgment parser turns raw model text into a data frame that includes
-\code{mention_id} and \code{decision}.
+Judgment-parser provider protocol
 }

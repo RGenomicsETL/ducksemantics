@@ -2,7 +2,7 @@
 % Please edit documentation in R/classes.R
 \name{ducksemantics_token_embedding_batch}
 \alias{ducksemantics_token_embedding_batch}
-\title{Construct a token embedding batch}
+\title{Construct token embedding rows}
 \usage{
 ducksemantics_token_embedding_batch(
   embeddings,
@@ -18,27 +18,27 @@ ducksemantics_token_embedding_batch(
 )
 }
 \arguments{
-\item{embeddings}{Numeric matrix with one row per token.}
+\item{embeddings}{Finite numeric matrix with one row per subject.}
 
-\item{subject_id}{Subject identifier for each token row.}
+\item{subject_id}{Non-empty subject identifiers.}
 
-\item{subject_kind}{Subject type, e.g. \code{"node"}, \code{"alias"}, \code{"mention"}, or
-\code{"document"}.}
+\item{subject_kind}{Subject type.}
 
-\item{provider}{Embedding provider label.}
+\item{provider}{Provider identity.}
 
-\item{token_index}{Token index within each subject block. Defaults to
-zero-based order within \code{subject_id}.}
+\item{token_index}{Zero-based token index within a document block.}
 
-\item{block_id}{Matrix/block identifier. Defaults to one block per
-\code{provider}, \code{subject_kind}, and \code{subject_id}.}
+\item{block_id}{Optional block identifier.}
 
-\item{token}{Optional token text for each row.}
+\item{token}{Optional token text.}
 
-\item{start_offset, end_offset}{Optional zero-based source offsets.}
+\item{start_offset, end_offset}{Optional zero-based half-open source offsets.}
 
-\item{attrs}{Optional JSON text or other metadata for each token row.}
+\item{attrs}{Optional metadata text per row.}
+}
+\value{
+A data frame suitable for \code{\link[=ducksemantics_write_token_embeddings]{ducksemantics_write_token_embeddings()}}.
 }
 \description{
-Construct a token embedding batch
+Construct token embedding rows
 }
