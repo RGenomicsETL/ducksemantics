@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ducksemantics</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,10 @@
       <small>Source: <a href="https://github.com/RGenomicsETL/ducksemantics/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.1" id="ducksemantics-021">ducksemantics 0.2.1<a class="anchor" aria-label="anchor" href="#ducksemantics-021"></a></h2>
+<ul><li>Kept Monarch array-provenance tests on DuckDB’s native list values rather than autoloading the optional <code>json</code> extension, so offline checks remain portable.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="ducksemantics-020">ducksemantics 0.2.0<a class="anchor" aria-label="anchor" href="#ducksemantics-020"></a></h2>
 <ul><li>Added <code><a href="../reference/ducksemantics_monarch_project_pack.html">ducksemantics_monarch_project_pack()</a></code> for narrow, read-only, connection-local projections of an already attached exact dated Monarch annotation pack. It validates the official pack shape—including Monarch’s serialized text negation and node/phenotype/IC tables—and an exact typed provider/release binding, preserves edge/provenance fields and arrays, and exposes explicit normalized-role statuses without downloads, copies, merges, ranking, or causal defaults.</li>

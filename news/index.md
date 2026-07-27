@@ -1,5 +1,11 @@
 # Changelog
 
+## ducksemantics 0.2.1
+
+- Kept Monarch array-provenance tests on DuckDB’s native list values
+  rather than autoloading the optional `json` extension, so offline
+  checks remain portable.
+
 ## ducksemantics 0.2.0
 
 - Added
