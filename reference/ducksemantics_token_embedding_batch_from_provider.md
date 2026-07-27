@@ -26,7 +26,7 @@ ducksemantics_token_embedding_batch_from_provider(
 - provider:
 
   Object implementing
-  [DucksemanticsTokenEmbeddingProvider](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).
+  [DucksemanticsTokenEmbeddingProvider](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).
 
 - subject_id:
 
@@ -51,7 +51,7 @@ ducksemantics_token_embedding_batch_from_provider(
 - ...:
 
   Arguments forwarded to
-  [`ducksemantics_token_embed()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_provider_generics.md).
+  [`ducksemantics_token_embed()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_provider_generics.md).
 
 ## Value
 

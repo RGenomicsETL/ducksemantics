@@ -22,7 +22,7 @@ ducksemantics_write_token_embeddings(
 - embeddings:
 
   Data frame from
-  [`ducksemantics_token_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch.md).
+  [`ducksemantics_token_embedding_batch()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch.md).
 
 - prefix:
 

@@ -17,4 +17,4 @@ ducksemantics_bebel_tool_judgment_parser(tool_name = NULL)
 ## Value
 
 An object implementing
-[DucksemanticsJudgmentParser](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsJudgmentParser.md).
+[DucksemanticsJudgmentParser](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsJudgmentParser.md).

@@ -11,4 +11,4 @@ ducksemantics_json_judgment_parser()
 ## Value
 
 An object implementing
-[DucksemanticsJudgmentParser](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsJudgmentParser.md).
+[DucksemanticsJudgmentParser](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsJudgmentParser.md).

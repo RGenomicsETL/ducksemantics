@@ -18,7 +18,7 @@ ducksemantics_hpo_observations(documents, observations, conn = NULL)
 - observations:
 
   Data frame (or caller-owned DuckDB table name) following
-  [`ducksemantics_hpo_observation_contract()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_hpo_observation_contract.md).
+  [`ducksemantics_hpo_observation_contract()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_hpo_observation_contract.md).
 
 - conn:
 

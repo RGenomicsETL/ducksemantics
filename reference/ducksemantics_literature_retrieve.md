@@ -39,7 +39,7 @@ ducksemantics_literature_retrieve(
 - snapshots:
 
   Source snapshot catalog from
-  [`ducksemantics_literature_snapshot_catalog()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_literature_snapshot_catalog.md).
+  [`ducksemantics_literature_snapshot_catalog()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_literature_snapshot_catalog.md).
 
 - query:
 

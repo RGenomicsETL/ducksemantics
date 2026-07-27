@@ -21,4 +21,4 @@ ducksemantics_token_embedding_provider(fun, label = "function-token")
 ## Value
 
 An object implementing
-[DucksemanticsTokenEmbeddingProvider](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).
+[DucksemanticsTokenEmbeddingProvider](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).

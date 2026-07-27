@@ -54,4 +54,4 @@ ducksemantics_embeddinggemma_provider(
 ## Value
 
 An object implementing
-[DucksemanticsEmbeddingProvider](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingProvider.md).
+[DucksemanticsEmbeddingProvider](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsEmbeddingProvider.md).

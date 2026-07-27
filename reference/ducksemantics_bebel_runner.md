@@ -21,4 +21,4 @@ ducksemantics_bebel_runner(agent, on_event = NULL)
 ## Value
 
 An object implementing
-[DucksemanticsPromptRunner](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsPromptRunner.md).
+[DucksemanticsPromptRunner](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsPromptRunner.md).

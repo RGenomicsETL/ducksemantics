@@ -10,16 +10,16 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/sounkou-bioinfo/ducksemantics/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/RGenomicsETL/ducksemantics/blob/main/DESCRIPTION)
 
 Toure S (2026). *ducksemantics: DuckDB-Native Semantic and Retrieval
-Relations*. R package version 0.1.0,
-<https://github.com/sounkou-bioinfo/ducksemantics>.
+Relations*. R package version 0.2.0,
+<https://github.com/RGenomicsETL/ducksemantics>.
 
     @Manual{,
       title = {ducksemantics: DuckDB-Native Semantic and Retrieval Relations},
       author = {Sounkou Mahamane Toure},
       year = {2026},
-      note = {R package version 0.1.0},
-      url = {https://github.com/sounkou-bioinfo/ducksemantics},
+      note = {R package version 0.2.0},
+      url = {https://github.com/RGenomicsETL/ducksemantics},
     }

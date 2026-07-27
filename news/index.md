@@ -1,5 +1,18 @@
 # Changelog
 
+## ducksemantics 0.2.0
+
+- Added
+  [`ducksemantics_monarch_project_pack()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_monarch_project_pack.md)
+  for narrow, read-only, connection-local projections of an already
+  attached exact dated Monarch annotation pack. It validates the
+  official pack shape—including Monarch’s serialized text negation and
+  node/phenotype/IC tables—and an exact typed provider/release binding,
+  preserves edge/provenance fields and arrays, and exposes explicit
+  normalized-role statuses without downloads, copies, merges, ranking,
+  or causal defaults.
+- Updated the public package origin to `RGenomicsETL/ducksemantics`.
+
 ## ducksemantics 0.1.0
 
 - Sealed package ownership around ontology graphs, validated HPO

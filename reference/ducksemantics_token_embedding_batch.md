@@ -60,4 +60,4 @@ ducksemantics_token_embedding_batch(
 ## Value
 
 A data frame suitable for
-[`ducksemantics_write_token_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_token_embeddings.md).
+[`ducksemantics_write_token_embeddings()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_write_token_embeddings.md).

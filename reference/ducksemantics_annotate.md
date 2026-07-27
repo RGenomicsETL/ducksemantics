@@ -1,7 +1,7 @@
 # Generate lexical HPO/ontology candidates
 
 These candidates are not accepted observations. Use
-[`ducksemantics_hpo_observations()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_hpo_observations.md)
+[`ducksemantics_hpo_observations()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_hpo_observations.md)
 to validate a separately accepted HPO observation relation against
 source documents.
 

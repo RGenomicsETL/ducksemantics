@@ -21,4 +21,4 @@ ducksemantics_prompt_runner(fun, label = "function")
 ## Value
 
 An object implementing
-[DucksemanticsPromptRunner](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsPromptRunner.md).
+[DucksemanticsPromptRunner](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsPromptRunner.md).

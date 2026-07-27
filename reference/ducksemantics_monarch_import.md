@@ -9,7 +9,7 @@ required to prove that every fact has a known provider/release identity.
 ducksemantics_monarch_import(
   facts,
   releases,
-  relation = c("gene_phenotype", "gene_disease"),
+  relation = c("gene_phenotype", "gene_disease", "disease_phenotype"),
   conn = NULL,
   table = NULL,
   replace = FALSE
@@ -20,17 +20,17 @@ ducksemantics_monarch_import(
 
 - facts:
 
-  Gene-phenotype or gene-disease data frame, or a caller-owned DuckDB
-  table name with `conn`.
+  Gene-phenotype, gene-disease, or disease-phenotype data frame, or a
+  caller-owned DuckDB table name with `conn`.
 
 - releases:
 
   Typed catalog from
-  [`ducksemantics_monarch_release_catalog()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_monarch_release_catalog.md).
+  [`ducksemantics_monarch_release_catalog()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_monarch_release_catalog.md).
 
 - relation:
 
-  Either `"gene_phenotype"` or `"gene_disease"`.
+  One of `"gene_phenotype"`, `"gene_disease"`, or `"disease_phenotype"`.
 
 - conn:
 

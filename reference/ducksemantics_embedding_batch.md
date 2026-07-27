@@ -45,4 +45,4 @@ ducksemantics_embedding_batch(
 ## Value
 
 A data frame suitable for
-[`ducksemantics_write_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_embeddings.md).
+[`ducksemantics_write_embeddings()`](https://RGenomicsETL.github.io/ducksemantics/reference/ducksemantics_write_embeddings.md).

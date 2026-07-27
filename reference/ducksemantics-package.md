@@ -1,7 +1,8 @@
 # DuckDB-native semantic and retrieval relations
 
 `ducksemantics` owns ontology graphs, validated HPO observations, typed
-release-cataloged Monarch relations, provider/snapshot-bound literature
+release-cataloged Monarch relations, narrow read-only projections of
+attached dated Monarch packs, provider/snapshot-bound literature
 retrieval, source-grounded judgments, and genuine model/provider
 protocols. Bulk values are ordinary relations; evaluation belongs to
 `VariantStoryBench`.
@@ -10,12 +11,11 @@ protocols. Bulk values are ordinary relations; evaluation belongs to
 
 Useful links:
 
-- <https://github.com/sounkou-bioinfo/ducksemantics>
+- <https://github.com/RGenomicsETL/ducksemantics>
 
-- <https://sounkou-bioinfo.github.io/ducksemantics/>
+- <https://RGenomicsETL.github.io/ducksemantics/>
 
-- Report bugs at
-  <https://github.com/sounkou-bioinfo/ducksemantics/issues>
+- Report bugs at <https://github.com/RGenomicsETL/ducksemantics/issues>
 
 ## Author
 

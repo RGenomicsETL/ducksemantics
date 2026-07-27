@@ -11,4 +11,4 @@ ducksemantics_lexical_annotator()
 ## Value
 
 An object implementing
-[DucksemanticsAnnotator](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsAnnotator.md).
+[DucksemanticsAnnotator](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsAnnotator.md).

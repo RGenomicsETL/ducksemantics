@@ -29,4 +29,4 @@ ducksemantics_colbert_provider(
 ## Value
 
 An object implementing
-[DucksemanticsTokenEmbeddingProvider](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).
+[DucksemanticsTokenEmbeddingProvider](https://RGenomicsETL.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).

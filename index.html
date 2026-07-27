@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="DuckDB-Native Semantic and Retrieval Relations">
-<meta name="description" content="DuckDB-native ontology graphs, validated Human Phenotype Ontology (HPO) observations, typed release-cataloged Monarch relations, provider/snapshot-catalog-bound literature retrieval, and source-grounded semantic judgments. Bulk values are ordinary relations; optional S7 protocols are reserved for real prompt, embedding, parser, and annotator providers. The package does not store ClinVar or PubMed source data, rank cases, or evaluate benchmarks.">
-<meta property="og:description" content="DuckDB-native ontology graphs, validated Human Phenotype Ontology (HPO) observations, typed release-cataloged Monarch relations, provider/snapshot-catalog-bound literature retrieval, and source-grounded semantic judgments. Bulk values are ordinary relations; optional S7 protocols are reserved for real prompt, embedding, parser, and annotator providers. The package does not store ClinVar or PubMed source data, rank cases, or evaluate benchmarks.">
+<meta name="description" content="DuckDB-native ontology graphs, validated Human Phenotype Ontology (HPO) observations, typed release-cataloged Monarch relations including read-only projections of attached dated packs, provider/snapshot-catalog-bound literature retrieval, and source-grounded semantic judgments. Bulk values are ordinary relations; optional S7 protocols are reserved for real prompt, embedding, parser, and annotator providers. The package does not store ClinVar or PubMed source data, download Monarch packs, rank cases, or evaluate benchmarks.">
+<meta property="og:description" content="DuckDB-native ontology graphs, validated Human Phenotype Ontology (HPO) observations, typed release-cataloged Monarch relations including read-only projections of attached dated packs, provider/snapshot-catalog-bound literature retrieval, and source-grounded semantic judgments. Bulk values are ordinary relations; optional S7 protocols are reserved for real prompt, embedding, parser, and annotator providers. The package does not store ClinVar or PubMed source data, download Monarch packs, rank cases, or evaluate benchmarks.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ducksemantics</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/sounkou-bioinfo/ducksemantics/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/RGenomicsETL/ducksemantics/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -57,7 +57,7 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ducksemantics"</span>,</span>
-<span>  repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://sounkou-bioinfo.r-universe.dev"</span>, <span class="st">"https://cloud.r-project.org"</span><span class="op">)</span></span>
+<span>  repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://rgenomicsetl.r-universe.dev"</span>, <span class="st">"https://cloud.r-project.org"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -65,7 +65,7 @@
 </h2>
 <p>Lexical candidates are intentionally distinct from accepted observations. An accepted observation must carry its HPO identifier, exact zero-based half-open source span, context, method/provider provenance, confidence, and explicit <code>accepted</code> status.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/sounkou-bioinfo/ducksemantics" class="external-link">ducksemantics</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/RGenomicsETL/ducksemantics" class="external-link">ducksemantics</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">documents</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  document_id <span class="op">=</span> <span class="st">"case-001"</span>,</span>
@@ -128,6 +128,38 @@
 <span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="do">## 1           &lt;NA&gt;  &lt;NA&gt;          2024-01            2025-01</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="attached-dated-monarch-annotation-packs">Attached dated Monarch annotation packs<a class="anchor" aria-label="anchor" href="#attached-dated-monarch-annotation-packs"></a>
+</h2>
+<p>For an official dated Monarch DuckDB pack already available to DuckDB, attach it outside the package, verify its immutable receipt, and bind one exact typed catalog row. The projection does not attach URLs, download or collect pack rows into R, make a copy, or accept <code>latest</code>; it creates seven connection-local <code>TEMP VIEW</code>s over the attached pack. The role views retain every raw edge and add normalized roles only when explicit Biolink subject/object categories support the orientation. The source contract matches Monarch’s serialized text <code>negated</code> field and also projects <code>node_has_phenotype</code>. Filter on a <code>supported_*</code> <code>association_status</code> deliberately: malformed categories or negation, missing predicates, negated edges, and unsupported orientations are returned as statuses, never silently treated as support or causal evidence. <code>negation_status</code> still distinguishes an omitted optional qualifier from explicit false, explicit true, and malformed text; omission does not erase Monarch’s positive source assertion.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_connect.html">ducksemantics_connect</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span></span>
+<span>  <span class="va">conn</span>,</span>
+<span>  <span class="st">"ATTACH '/data/monarch-kg/2026-07-14/monarch-kg.duckdb' AS monarch (READ_ONLY)"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">releases</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  provider_id <span class="op">=</span> <span class="st">"infores:monarchinitiative"</span>,</span>
+<span>  release_id <span class="op">=</span> <span class="st">"2026-07-14"</span>,</span>
+<span>  effective_date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2026-07-14"</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">views</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_monarch_project_pack.html">ducksemantics_monarch_project_pack</a></span><span class="op">(</span></span>
+<span>  <span class="va">conn</span>, source_catalog <span class="op">=</span> <span class="st">"monarch"</span>, releases <span class="op">=</span> <span class="va">releases</span>,</span>
+<span>  provider_id <span class="op">=</span> <span class="st">"infores:monarchinitiative"</span>, release_id <span class="op">=</span> <span class="st">"2026-07-14"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span></span>
+<span>  <span class="va">conn</span>,</span>
+<span>  <span class="st">"SELECT gene_id, disease_id, predicate, primary_knowledge_source</span></span>
+<span><span class="st">   FROM semantic_monarch_gene_disease</span></span>
+<span><span class="st">   WHERE association_status IN (</span></span>
+<span><span class="st">     'supported_subject_to_object', 'supported_object_to_subject'</span></span>
+<span><span class="st">   )"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The returned <code>views</code> relation names views rather than materializing pack contents. The native association view preserves edge identifiers, predicate and category, primary/aggregator provenance, evidence/publication/qualifier arrays, agent and knowledge fields, taxa, negation, and raw original fields. No provider edges are voted or merged.</p>
+</div>
+<div class="section level2">
 <h2 id="snapshot-bound-literature-retrieval">Snapshot-bound literature retrieval<a class="anchor" aria-label="anchor" href="#snapshot-bound-literature-retrieval"></a>
 </h2>
 <p><code>RClinVarbitration</code> owns append-only PubMed source history and <code>ducksemantics</code> neither imports nor stores literature. Retrieval consumes the same provider-scoped source-order projection:</p>
@@ -141,7 +173,7 @@
 </ul>
 <p>For a cataloged provider/snapshot, it selects the maximum <code>source_ordinal &lt;= high_water_ordinal</code> per article, excludes an article when that selected event is deleted, and joins sections only on all version keys. Thus order is numeric (for example 10 follows 9), not lexical. Exact nonempty zero-based half-open source spans are returned.</p>
 <p>This is directly derivable from RClinVarbitration without a storage adapter: <code>pubmed_sources</code> supplies provider, snapshot, source ordinal, and application timestamp; <code>pubmed_articles</code> supplies the event and deletion flag; and <code>pubmed_abstracts</code> supplies same-source version-bound sections. A caller may also project <code>article_title</code> into a <code>title</code> section. The relations remain caller-owned; <code>ducksemantics</code> does not write or materialize a shadow copy.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">snapshots</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  provider_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pubmed"</span>, <span class="st">"pubmed"</span><span class="op">)</span>,</span>
 <span>  snapshot_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"baseline"</span>, <span class="st">"update"</span><span class="op">)</span>,</span>
@@ -175,19 +207,19 @@
 <span>  provider_id <span class="op">=</span> <span class="st">"pubmed"</span>,</span>
 <span>  snapshot_id <span class="op">=</span> <span class="st">"update"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb7"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="do">##   provider_id snapshot_id high_water_ordinal effective_at article_id pmid</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="do">## 1      pubmed      update                 10   2025-01-10   pmid:123  123</span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="do">##   version_id source_ordinal    section start_offset end_offset source_text</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="do">## 1  source-10             10 BACKGROUND            8         15     seizure</span></span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="do">##                section_text</span></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="do">## 1 Updated seizure phenotype</span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="do">##   provider_id snapshot_id high_water_ordinal effective_at article_id pmid</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="do">## 1      pubmed      update                 10   2025-01-10   pmid:123  123</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="do">##   version_id source_ordinal    section start_offset end_offset source_text</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="do">## 1  source-10             10 BACKGROUND            8         15     seizure</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="do">##                section_text</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="do">## 1 Updated seizure phenotype</span></span></code></pre></div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
-<li><a href="https://github.com/sounkou-bioinfo/ducksemantics/" class="external-link">Browse source code</a></li>
-<li><a href="https://github.com/sounkou-bioinfo/ducksemantics/issues" class="external-link">Report a bug</a></li>
+<li><a href="https://github.com/RGenomicsETL/ducksemantics/" class="external-link">Browse source code</a></li>
+<li><a href="https://github.com/RGenomicsETL/ducksemantics/issues" class="external-link">Report a bug</a></li>
 </ul>
 </div>
 
