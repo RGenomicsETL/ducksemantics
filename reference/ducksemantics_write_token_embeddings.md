@@ -1,16 +1,13 @@
-# Store token embeddings for late-interaction scoring
+# Store token embedding rows in DuckDB
 
-Native ColBERT document vectors are grouped by `block_id`, so exact
-MaxSim can compare a query-token matrix to a stored candidate matrix
-without changing the graph schema. Dense vectors in
-`semantic_embeddings` remain the inexpensive broad-retrieval layer.
+Store token embedding rows in DuckDB
 
 ## Usage
 
 ``` r
 ducksemantics_write_token_embeddings(
-  batch,
   conn,
+  embeddings,
   prefix = "semantic",
   replace = FALSE
 )
@@ -18,24 +15,23 @@ ducksemantics_write_token_embeddings(
 
 ## Arguments
 
-- batch:
-
-  A `DucksemanticsTokenEmbeddingBatch` object from
-  [`ducksemantics_token_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch.md).
-
 - conn:
 
   DBI connection.
 
+- embeddings:
+
+  Data frame from
+  [`ducksemantics_token_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch.md).
+
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 - replace:
 
-  Delete existing token rows for the same subjects and provider before
-  inserting?
+  Replace existing rows with the same subject and provider.
 
 ## Value
 
-Invisibly, the written token embedding rows.
+Invisibly, written rows.

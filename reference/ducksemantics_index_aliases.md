@@ -16,8 +16,8 @@ ducksemantics_index_aliases(conn, prefix = "semantic")
 
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 ## Value
 
-Invisibly, the alias index table name.
+Invisibly, index table name.

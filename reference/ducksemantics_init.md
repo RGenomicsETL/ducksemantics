@@ -16,7 +16,7 @@ ducksemantics_init(conn, prefix = "semantic")
 
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 ## Value
 

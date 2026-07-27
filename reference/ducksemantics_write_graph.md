@@ -1,6 +1,6 @@
-# Write graph rows into the semantic store
+# Write ontology graph rows
 
-Write graph rows into the semantic store
+Write ontology graph rows
 
 ## Usage
 
@@ -24,31 +24,28 @@ ducksemantics_write_graph(
 
 - nodes:
 
-  Data frame with `node_id`, `family`, and optional `label`,
-  `description`, `attrs`, `trust`.
+  Data frame with `node_id` and `family`.
 
 - aliases:
 
-  Data frame with `node_id`, `alias`, and optional `alias_kind`,
-  `source`, `weight`, `attrs`.
+  Data frame with `node_id` and `alias`.
 
 - edges:
 
-  Data frame with `from_id`, `predicate`, `to_id`, and optional `attrs`,
-  `trust`.
+  Data frame with `from_id`, `predicate`, and `to_id`.
 
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 - replace:
 
-  Delete existing rows from populated target tables before writing?
+  Replace supplied target relations.
 
 - index:
 
-  Rebuild the alias index after writing aliases?
+  Rebuild lexical alias index.
 
 ## Value
 
-Invisibly, the semantic table names.
+Invisibly, semantic table names.

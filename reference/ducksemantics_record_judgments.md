@@ -1,6 +1,6 @@
-# Record semantic judgments
+# Record source-grounded judgments
 
-Record semantic judgments
+Record source-grounded judgments
 
 ## Usage
 
@@ -16,12 +16,12 @@ ducksemantics_record_judgments(conn, judgments, prefix = "semantic")
 
 - judgments:
 
-  Judgment data frame.
+  Judgment relation.
 
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 ## Value
 
-Invisibly, `judgments`.
+Invisibly, validated judgment rows.

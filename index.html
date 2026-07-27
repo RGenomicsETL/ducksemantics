@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>DuckDB-Native Semantic Graph Grounding • ducksemantics</title>
+<title>DuckDB-Native Semantic and Retrieval Relations • ducksemantics</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="DuckDB-Native Semantic Graph Grounding">
-<meta name="description" content="DuckDB-native semantic graph grounding over arbitrary concept graphs. The package owns graph schema creation, alias indexing, lexical mention grounding, transitive graph closure, EmbeddingGemma dense retrieval, ColBERT late interaction, and BebeLM judgment prompts. HPO, MONDO, ORPHANET, memory graphs, and run ledgers are graph sources, not special package APIs.">
-<meta property="og:description" content="DuckDB-native semantic graph grounding over arbitrary concept graphs. The package owns graph schema creation, alias indexing, lexical mention grounding, transitive graph closure, EmbeddingGemma dense retrieval, ColBERT late interaction, and BebeLM judgment prompts. HPO, MONDO, ORPHANET, memory graphs, and run ledgers are graph sources, not special package APIs.">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="DuckDB-Native Semantic and Retrieval Relations">
+<meta name="description" content="DuckDB-native ontology graphs, validated Human Phenotype Ontology (HPO) observations, typed release-cataloged Monarch relations, provider/snapshot-catalog-bound literature retrieval, and source-grounded semantic judgments. Bulk values are ordinary relations; optional S7 protocols are reserved for real prompt, embedding, parser, and annotator providers. The package does not store ClinVar or PubMed source data, rank cases, or evaluate benchmarks.">
+<meta property="og:description" content="DuckDB-native ontology graphs, validated Human Phenotype Ontology (HPO) observations, typed release-cataloged Monarch relations, provider/snapshot-catalog-bound literature retrieval, and source-grounded semantic judgments. Bulk values are ordinary relations; optional S7 protocols are reserved for real prompt, embedding, parser, and annotator providers. The package does not store ClinVar or PubMed source data, rank cases, or evaluate benchmarks.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -49,12 +49,11 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="ducksemantics">ducksemantics<a class="anchor" aria-label="anchor" href="#ducksemantics"></a>
 </h1></div>
-<p><code>ducksemantics</code> is a DuckDB-native semantic graph and evidence-grounding package for R. It stores ontology nodes, aliases, graph edges, dense vectors, and ColBERT document token vectors in one auditable DuckDB database.</p>
-<p>It combines the Rbebelm retrieval and judgment APIs in one graph workflow. EmbeddingGemma supplies task-prompted dense vectors for broad retrieval and DuckDB HNSW candidate generation, LFM2.5-ColBERT supplies exact late-interaction MaxSim reranking of stored candidate documents, and BebeLM records structured judgments with negation, uncertainty, family history, and subject context. HPO, MONDO, ORPHANET, and local knowledge graphs load through the same graph schema.</p>
+<p><code>ducksemantics</code> is a DuckDB-native semantic and retrieval substrate for R. It owns ontology graphs, validated HPO observations, cataloged Monarch relations, snapshot-bound literature retrieval, source-grounded judgments, and optional local model/provider protocols. It does not own ClinVar/PubMed source storage, case ranking, or evaluation.</p>
+<p>Bulk values are ordinary data frames or caller-owned DuckDB relations. S7 is reserved for real prompt, embedding, parser, and annotator provider protocols. See <a href="ARCHITECTURE.html">ARCHITECTURE.md</a> for the current boundary.</p>
 <div class="section level2">
 <h2 id="install">Install<a class="anchor" aria-label="anchor" href="#install"></a>
 </h2>
-<p>Install the release and its R dependencies from the project R-universe:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ducksemantics"</span>,</span>
@@ -62,167 +61,126 @@
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="build-a-semantic-graph">Build a semantic graph<a class="anchor" aria-label="anchor" href="#build-a-semantic-graph"></a>
+<h2 id="ontology-candidates-and-accepted-hpo-observations">Ontology candidates and accepted HPO observations<a class="anchor" aria-label="anchor" href="#ontology-candidates-and-accepted-hpo-observations"></a>
 </h2>
-<p>The bundled HPO fixture is a small, attribution-preserving subset of the real Human Phenotype Ontology. It keeps the README executable without downloading an ontology during rendering.</p>
+<p>Lexical candidates are intentionally distinct from accepted observations. An accepted observation must carry its HPO identifier, exact zero-based half-open source span, context, method/provider provenance, confidence, and explicit <code>accepted</code> status.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/sounkou-bioinfo/ducksemantics" class="external-link">ducksemantics</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_connect.html">ducksemantics_connect</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">hpo</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_read_obo.html">ducksemantics_read_obo</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"hpo-readme.obo"</span>, package <span class="op">=</span> <span class="st">"ducksemantics"</span>, mustWork <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"HPO"</span>,</span>
-<span>  source <span class="op">=</span> <span class="st">"HPO README fixture"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/ducksemantics_write_graph.html">ducksemantics_write_graph</a></span><span class="op">(</span></span>
-<span>  <span class="va">conn</span>,</span>
-<span>  nodes <span class="op">=</span> <span class="va">hpo</span><span class="op">$</span><span class="va">nodes</span>,</span>
-<span>  aliases <span class="op">=</span> <span class="va">hpo</span><span class="op">$</span><span class="va">aliases</span>,</span>
-<span>  edges <span class="op">=</span> <span class="va">hpo</span><span class="op">$</span><span class="va">edges</span>,</span>
-<span>  replace <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="va">documents</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  document_id <span class="op">=</span> <span class="st">"case-001"</span>,</span>
+<span>  source_text <span class="op">=</span> <span class="st">"The patient has seizures."</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Deterministic, explainable candidates. This intentionally includes negated</span></span>
-<span><span class="co"># mentions; BebeLM judgment decides whether the mention is a patient finding.</span></span>
-<span><span class="va">case_text</span> <span class="op">&lt;-</span> <span class="st">"The proband has short stature and seizures but no diabetes mellitus."</span></span>
-<span><span class="va">mentions</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_annotate.html">ducksemantics_annotate</a></span><span class="op">(</span></span>
-<span>  <span class="va">conn</span>,</span>
-<span>  <span class="va">case_text</span>,</span>
-<span>  document_id <span class="op">=</span> <span class="st">"case-001"</span></span>
+<span><span class="va">observations</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  document_id <span class="op">=</span> <span class="st">"case-001"</span>,</span>
+<span>  hpo_id <span class="op">=</span> <span class="st">"HP:0001250"</span>,</span>
+<span>  start_offset <span class="op">=</span> <span class="fl">16L</span>,</span>
+<span>  end_offset <span class="op">=</span> <span class="fl">24L</span>,</span>
+<span>  source_text <span class="op">=</span> <span class="st">"seizures"</span>,</span>
+<span>  context_status <span class="op">=</span> <span class="st">"present"</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"lexical_alias"</span>,</span>
+<span>  provider_id <span class="op">=</span> <span class="st">"local-lexicon"</span>,</span>
+<span>  provider_version <span class="op">=</span> <span class="st">"1"</span>,</span>
+<span>  confidence <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  status <span class="op">=</span> <span class="st">"accepted"</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">mentions</span></span>
-<span><span class="co">#&gt;   document_id      mention_id    node_id          span start_offset end_offset</span></span>
-<span><span class="co">#&gt; 1    case-001 case-001:000017 HP:0004322 short stature           16         29</span></span>
-<span><span class="co">#&gt; 2    case-001 case-001:000031 HP:0001250      seizures           34         42</span></span>
-<span><span class="co">#&gt;   score        method attrs trust         alias    alias_kind</span></span>
-<span><span class="co">#&gt; 1  1.00 lexical_alias  &lt;NA&gt;  &lt;NA&gt; Short stature         label</span></span>
-<span><span class="co">#&gt; 2  0.95 lexical_alias  &lt;NA&gt;  &lt;NA&gt;      Seizures synonym:exact</span></span>
-<span><span class="co">#&gt;               source</span></span>
-<span><span class="co">#&gt; 1 HPO README fixture</span></span>
-<span><span class="co">#&gt; 2 HPO README fixture</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="full-hpo-validation">Full HPO validation<a class="anchor" aria-label="anchor" href="#full-hpo-validation"></a>
-</h3>
-<p>The 0.1.0 release was exercised against the complete HPO 2026-06-23 ontology. The run loaded 19,836 active nodes, 50,029 aliases, and 24,378 direct edges, then materialized 202,740 <code>is_a</code> closure rows. The model-scale run persisted one 256-dimensional EmbeddingGemma vector for every active term and 182,884 native ColBERT token vectors across the same 19,836 terms before running dense and exact MaxSim queries.</p>
-</div>
+<span></span>
+<span><span class="fu"><a href="reference/ducksemantics_hpo_observations.html">ducksemantics_hpo_observations</a></span><span class="op">(</span><span class="va">documents</span>, <span class="va">observations</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="do">##   document_id     hpo_id start_offset end_offset source_text context_status</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="do">## 1    case-001 HP:0001250           16         24    seizures        present</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="do">##          method   provider_id provider_version confidence   status</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="do">## 1 lexical_alias local-lexicon                1          1 accepted</span></span></code></pre></div>
+<p>The validator rejects hallucinated text, empty spans, out-of-bounds spans, and any context outside <code>present</code>, <code>absent/negated</code>, <code>family_history</code>, <code>uncertain</code>, <code>conflict</code>, or <code>unsupported</code>.</p>
 </div>
 <div class="section level2">
-<h2 id="dense-retrieval-with-embeddinggemma">Dense retrieval with EmbeddingGemma<a class="anchor" aria-label="anchor" href="#dense-retrieval-with-embeddinggemma"></a>
+<h2 id="cataloged-monarch-facts">Cataloged Monarch facts<a class="anchor" aria-label="anchor" href="#cataloged-monarch-facts"></a>
 </h2>
-<p>EmbeddingGemma provides the broad candidate stage. Choose its task deliberately: vectors sharing a compatible prompt contract can be compared directly. This example loads the local GGUF selected by <code>EMBEDDING_GEMMA_WEIGHTS_FILE</code> and executes the native encoder.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">Rbebelm</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">embedding_model</span> <span class="op">&lt;-</span> <span class="fu">embeddinggemma_model_load</span><span class="op">(</span></span>
-<span>  <span class="va">embeddinggemma_weights</span>,</span>
-<span>  num_threads <span class="op">=</span> <span class="fl">2</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">dense_provider</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_embeddinggemma_provider.html">ducksemantics_embeddinggemma_provider</a></span><span class="op">(</span></span>
-<span>  <span class="va">embedding_model</span>,</span>
-<span>  label <span class="op">=</span> <span class="st">"embeddinggemma-hpo-v1"</span>,</span>
-<span>  task <span class="op">=</span> <span class="st">"semantic_similarity"</span>,</span>
-<span>  dimensions <span class="op">=</span> <span class="fl">256L</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">terms</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"SELECT node_id, label FROM semantic_nodes WHERE family = 'HPO'"</span><span class="op">)</span></span>
-<span><span class="va">vectors</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_embed_cached.html">ducksemantics_embed_cached</a></span><span class="op">(</span></span>
-<span>  <span class="va">terms</span><span class="op">$</span><span class="va">label</span>,</span>
-<span>  provider <span class="op">=</span> <span class="va">dense_provider</span>,</span>
-<span>  cache_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"ducksemantics-embeddinggemma-hpo-cache"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/ducksemantics_embedding_batch.html">ducksemantics_embedding_batch</a></span><span class="op">(</span></span>
-<span>  <span class="va">vectors</span>,</span>
-<span>  subject_id <span class="op">=</span> <span class="va">terms</span><span class="op">$</span><span class="va">node_id</span>,</span>
-<span>  subject_kind <span class="op">=</span> <span class="st">"hpo_term"</span>,</span>
-<span>  provider <span class="op">=</span> <span class="st">"embeddinggemma-hpo-v1"</span>,</span>
-<span>  text <span class="op">=</span> <span class="va">terms</span><span class="op">$</span><span class="va">label</span></span>
-<span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/ducksemantics_write_embeddings.html">ducksemantics_write_embeddings</a></span><span class="op">(</span><span class="va">conn</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Exact DuckDB vector search is sufficient for this small example. An HNSW</span></span>
-<span><span class="co"># index is optional for a larger dense candidate collection.</span></span>
-<span><span class="va">dense_hits</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_embedding_query.html">ducksemantics_embedding_query</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="reference/ducksemantics_provider_generics.html">ducksemantics_embed</a></span><span class="op">(</span><span class="va">dense_provider</span>, <span class="st">"short height"</span><span class="op">)</span><span class="op">[</span><span class="fl">1L</span>, <span class="op">]</span>,</span>
-<span>  provider <span class="op">=</span> <span class="st">"embeddinggemma-hpo-v1"</span>,</span>
-<span>  subject_kind <span class="op">=</span> <span class="st">"hpo_term"</span>,</span>
-<span>  top_k <span class="op">=</span> <span class="fl">3L</span></span>
-<span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/ducksemantics_embedding_search.html">ducksemantics_embedding_search</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span>
-<span><span class="va">dense_hits</span></span>
-<span><span class="co">#&gt;   subject_id subject_kind              provider                   text dim</span></span>
-<span><span class="co">#&gt; 1 HP:0004322     hpo_term embeddinggemma-hpo-v1          Short stature 256</span></span>
-<span><span class="co">#&gt; 2 HP:0001252     hpo_term embeddinggemma-hpo-v1              Hypotonia 256</span></span>
-<span><span class="co">#&gt; 3 HP:0000118     hpo_term embeddinggemma-hpo-v1 Phenotypic abnormality 256</span></span>
-<span><span class="co">#&gt;       score</span></span>
-<span><span class="co">#&gt; 1 0.9806611</span></span>
-<span><span class="co">#&gt; 2 0.6952595</span></span>
-<span><span class="co">#&gt; 3 0.6600621</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="exact-late-interaction-with-native-colbert">Exact late interaction with native ColBERT<a class="anchor" aria-label="anchor" href="#exact-late-interaction-with-native-colbert"></a>
-</h2>
-<p>ColBERT document vectors are persisted once, and each query is encoded with the model’s query contract. DuckDB then computes the exact MaxSim sum over stored document vectors. Large corpora can send dense HNSW, lexical, or graph candidates to this stage through <code>candidate_subject_id</code>. This example loads the local GGUF selected by <code>COLBERT_WEIGHTS_FILE</code> and uses Rbebelm’s native LFM2.5-ColBERT encoder.</p>
+<p>Callers provide both facts and a typed release catalog. A catalog row identifies one provider/release and supplies a <code>Date</code>/<code>POSIXct</code> effective date or a numeric source ordinal. Exact and as-of queries bind the provider plus a cataloged release; historical gene-disease holdouts are explicit anti-join audits.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">colbert_model</span> <span class="op">&lt;-</span> <span class="fu">colbert_model_load</span><span class="op">(</span><span class="va">colbert_weights</span>, num_threads <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="va">colbert_documents</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_colbert_provider.html">ducksemantics_colbert_provider</a></span><span class="op">(</span></span>
-<span>  <span class="va">colbert_model</span>,</span>
-<span>  role <span class="op">=</span> <span class="st">"document"</span>,</span>
-<span>  label <span class="op">=</span> <span class="st">"lfm2.5-colbert-350m-q4km"</span></span>
+<code class="sourceCode R"><span><span class="va">releases</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  release_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01"</span>, <span class="st">"2025-01"</span><span class="op">)</span>,</span>
+<span>  provider_id <span class="op">=</span> <span class="st">"Monarch"</span>,</span>
+<span>  effective_date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01-01"</span>, <span class="st">"2025-01-01"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  source_ordinal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">gene_disease</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  gene_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"HGNC:1100"</span>, <span class="st">"HGNC:1100"</span><span class="op">)</span>,</span>
+<span>  disease_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MONDO:0000001"</span>, <span class="st">"MONDO:0000002"</span><span class="op">)</span>,</span>
+<span>  release_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01"</span>, <span class="st">"2025-01"</span><span class="op">)</span>,</span>
+<span>  provider_id <span class="op">=</span> <span class="st">"Monarch"</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/ducksemantics_token_embedding_batch_from_provider.html">ducksemantics_token_embedding_batch_from_provider</a></span><span class="op">(</span></span>
-<span>  <span class="va">terms</span><span class="op">$</span><span class="va">label</span>,</span>
-<span>  provider <span class="op">=</span> <span class="va">colbert_documents</span>,</span>
-<span>  subject_id <span class="op">=</span> <span class="va">terms</span><span class="op">$</span><span class="va">node_id</span>,</span>
-<span>  subject_kind <span class="op">=</span> <span class="st">"hpo_term"</span></span>
-<span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/ducksemantics_write_token_embeddings.html">ducksemantics_write_token_embeddings</a></span><span class="op">(</span><span class="va">conn</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">hits</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_colbert_query.html">ducksemantics_colbert_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">colbert_model</span>,</span>
-<span>  <span class="st">"developmental delay with seizures"</span>,</span>
-<span>  provider <span class="op">=</span> <span class="st">"lfm2.5-colbert-350m-q4km"</span>,</span>
-<span>  subject_kind <span class="op">=</span> <span class="st">"hpo_term"</span>,</span>
-<span>  top_k <span class="op">=</span> <span class="fl">25L</span></span>
-<span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/ducksemantics_late_interaction_search.html">ducksemantics_late_interaction_search</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span>
-<span><span class="va">hits</span></span>
-<span><span class="co">#&gt; &lt;ducksemantics late-interaction result&gt;</span></span>
-<span><span class="co">#&gt;   blocks: 4</span></span>
-<span><span class="co">#&gt;   top score: 29.7243</span></span></code></pre></div>
-<p>The token table holds 128-dimensional LFM2.5-ColBERT document vectors for variable-length MaxSim scoring. <code>duckdb-vss</code> can accelerate the fixed-width EmbeddingGemma candidate stage while DuckDB evaluates the token-level reranker.</p>
+<span><span class="va">gene_disease</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_monarch_import.html">ducksemantics_monarch_import</a></span><span class="op">(</span></span>
+<span>  <span class="va">gene_disease</span>, <span class="va">releases</span>, relation <span class="op">=</span> <span class="st">"gene_disease"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/ducksemantics_monarch_gene_disease_holdout_audit.html">ducksemantics_monarch_gene_disease_holdout_audit</a></span><span class="op">(</span></span>
+<span>  <span class="va">gene_disease</span>, <span class="va">releases</span>, provider_id <span class="op">=</span> <span class="st">"Monarch"</span>,</span>
+<span>  train_release_id <span class="op">=</span> <span class="st">"2024-01"</span>, holdout_release_id <span class="op">=</span> <span class="st">"2025-01"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="do">##     gene_id    disease_id               predicate release_id provider_id</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="do">## 1 HGNC:1100 MONDO:0000002 biolink:associated_with    2025-01     Monarch</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="do">##   source_version attrs train_release_id holdout_release_id</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="do">## 1           &lt;NA&gt;  &lt;NA&gt;          2024-01            2025-01</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="bebelm-candidate-judgment">BebeLM candidate judgment<a class="anchor" aria-label="anchor" href="#bebelm-candidate-judgment"></a>
+<h2 id="snapshot-bound-literature-retrieval">Snapshot-bound literature retrieval<a class="anchor" aria-label="anchor" href="#snapshot-bound-literature-retrieval"></a>
 </h2>
-<p>BebeLM reviews candidates together with the retrieved context and records a structured decision for negated, uncertain, historical, and subject-specific mentions. Replacement concepts come from the supplied candidates and graph neighbors, preserving a direct evidence trail. This example loads the local GGUF selected by <code>BEBELM_WEIGHTS_FILE</code> and executes a BebeLM judgment.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">generation_model</span> <span class="op">&lt;-</span> <span class="fu">bebel_model_load</span><span class="op">(</span><span class="va">bebel_weights</span>, num_threads <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="va">agent</span> <span class="op">&lt;-</span> <span class="fu">bebel_agent</span><span class="op">(</span><span class="va">generation_model</span>, greedy <span class="op">=</span> <span class="cn">TRUE</span>, max_gen <span class="op">=</span> <span class="fl">256L</span>, max_think <span class="op">=</span> <span class="fl">0L</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">judgments</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ducksemantics_bebel_judge.html">ducksemantics_bebel_judge</a></span><span class="op">(</span></span>
-<span>  <span class="va">agent</span>,</span>
-<span>  text <span class="op">=</span> <span class="va">case_text</span>,</span>
-<span>  mentions <span class="op">=</span> <span class="va">mentions</span>,</span>
-<span>  conn <span class="op">=</span> <span class="va">conn</span>,</span>
-<span>  parser <span class="op">=</span> <span class="fu"><a href="reference/ducksemantics_bebel_tool_judgment_parser.html">ducksemantics_bebel_tool_judgment_parser</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"LFM2.5-8B-A1B"</span></span>
+<p><code>RClinVarbitration</code> owns append-only PubMed source history and <code>ducksemantics</code> neither imports nor stores literature. Retrieval consumes the same provider-scoped source-order projection:</p>
+<ul>
+<li>
+<strong>snapshots:</strong> <code>provider_id</code>, <code>snapshot_id</code>, finite integer <code>high_water_ordinal</code>, and optional <code>POSIXct</code> <code>effective_at</code>;</li>
+<li>
+<strong>article versions:</strong> <code>provider_id</code>, <code>article_id</code>, <code>pmid</code>, <code>version_id</code>, finite integer <code>source_ordinal</code>, and logical <code>is_deleted</code>;</li>
+<li>
+<strong>version-bound sections:</strong> <code>provider_id</code>, <code>article_id</code>, <code>pmid</code>, <code>version_id</code>, finite integer <code>source_ordinal</code>, <code>section</code>, and exact non-empty <code>text</code>.</li>
+</ul>
+<p>For a cataloged provider/snapshot, it selects the maximum <code>source_ordinal &lt;= high_water_ordinal</code> per article, excludes an article when that selected event is deleted, and joins sections only on all version keys. Thus order is numeric (for example 10 follows 9), not lexical. Exact nonempty zero-based half-open source spans are returned.</p>
+<p>This is directly derivable from RClinVarbitration without a storage adapter: <code>pubmed_sources</code> supplies provider, snapshot, source ordinal, and application timestamp; <code>pubmed_articles</code> supplies the event and deletion flag; and <code>pubmed_abstracts</code> supplies same-source version-bound sections. A caller may also project <code>article_title</code> into a <code>title</code> section. The relations remain caller-owned; <code>ducksemantics</code> does not write or materialize a shadow copy.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">snapshots</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  provider_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pubmed"</span>, <span class="st">"pubmed"</span><span class="op">)</span>,</span>
+<span>  snapshot_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"baseline"</span>, <span class="st">"update"</span><span class="op">)</span>,</span>
+<span>  high_water_ordinal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">9</span>, <span class="fl">10</span><span class="op">)</span>,</span>
+<span>  effective_at <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2025-01-09"</span>, <span class="st">"2025-01-10"</span><span class="op">)</span>, tz <span class="op">=</span> <span class="st">"UTC"</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">judgments</span></span>
-<span><span class="co">#&gt;                judgment_id      subject_id                   predicate</span></span>
-<span><span class="co">#&gt; 1 judgment:case-001:000017 case-001:000017 semantic:grounding_decision</span></span>
-<span><span class="co">#&gt; 2 judgment:case-001:000031 case-001:000031 semantic:grounding_decision</span></span>
-<span><span class="co">#&gt;    object_id</span></span>
-<span><span class="co">#&gt; 1 HP:0004322</span></span>
-<span><span class="co">#&gt; 2 HP:0001250</span></span>
-<span><span class="co">#&gt;                                                                                                                                                                                                                                                                                                        value_json</span></span>
-<span><span class="co">#&gt; 1 {"mention_id":"case-001:000017","decision":"keep","confidence":1,"patient_context":"The proband has short stature and seizures but no diabetes mellitus.","evidence_span":"short stature","short_reason":"Mention directly states short stature in proband.","replacement_node_id":null,"node_id":"HP:0004322"}</span></span>
-<span><span class="co">#&gt; 2        {"mention_id":"case-001:000031","decision":"keep","confidence":0.95,"patient_context":"The proband has short stature and seizures but no diabetes mellitus.","evidence_span":"seizures","short_reason":"Mention directly states seizures in proband.","replacement_node_id":null,"node_id":"HP:0001250"}</span></span>
-<span><span class="co">#&gt;   decision confidence</span></span>
-<span><span class="co">#&gt; 1     keep       1.00</span></span>
-<span><span class="co">#&gt; 2     keep       0.95</span></span>
-<span><span class="co">#&gt;                                                                                                                                                                                        evidence</span></span>
-<span><span class="co">#&gt; 1 {"evidence_span":"short stature","short_reason":"Mention directly states short stature in proband.","patient_context":"The proband has short stature and seizures but no diabetes mellitus."}</span></span>
-<span><span class="co">#&gt; 2           {"evidence_span":"seizures","short_reason":"Mention directly states seizures in proband.","patient_context":"The proband has short stature and seizures but no diabetes mellitus."}</span></span>
-<span><span class="co">#&gt;           model             recorded_at attrs</span></span>
-<span><span class="co">#&gt; 1 LFM2.5-8B-A1B 2026-07-21 15:01:45.777  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 2 LFM2.5-8B-A1B 2026-07-21 15:01:45.777  &lt;NA&gt;</span></span></code></pre></div>
+<span><span class="va">articles</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  provider_id <span class="op">=</span> <span class="st">"pubmed"</span>,</span>
+<span>  article_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pmid:123"</span>, <span class="st">"pmid:123"</span><span class="op">)</span>,</span>
+<span>  pmid <span class="op">=</span> <span class="st">"123"</span>,</span>
+<span>  version_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"source-9"</span>, <span class="st">"source-10"</span><span class="op">)</span>,</span>
+<span>  source_ordinal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">9</span>, <span class="fl">10</span><span class="op">)</span>,</span>
+<span>  is_deleted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">FALSE</span>, <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">sections</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  provider_id <span class="op">=</span> <span class="st">"pubmed"</span>,</span>
+<span>  article_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pmid:123"</span>, <span class="st">"pmid:123"</span><span class="op">)</span>,</span>
+<span>  pmid <span class="op">=</span> <span class="st">"123"</span>,</span>
+<span>  version_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"source-9"</span>, <span class="st">"source-10"</span><span class="op">)</span>,</span>
+<span>  source_ordinal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">9</span>, <span class="fl">10</span><span class="op">)</span>,</span>
+<span>  section <span class="op">=</span> <span class="st">"BACKGROUND"</span>,</span>
+<span>  text <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Seizure phenotype in a family"</span>, <span class="st">"Updated seizure phenotype"</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/ducksemantics_literature_retrieve.html">ducksemantics_literature_retrieve</a></span><span class="op">(</span></span>
+<span>  <span class="va">articles</span>, <span class="va">sections</span>, <span class="va">snapshots</span>,</span>
+<span>  query <span class="op">=</span> <span class="st">"seizure"</span>,</span>
+<span>  provider_id <span class="op">=</span> <span class="st">"pubmed"</span>,</span>
+<span>  snapshot_id <span class="op">=</span> <span class="st">"update"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="do">##   provider_id snapshot_id high_water_ordinal effective_at article_id pmid</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="do">## 1      pubmed      update                 10   2025-01-10   pmid:123  123</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="do">##   version_id source_ordinal    section start_offset end_offset source_text</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="do">## 1  source-10             10 BACKGROUND            8         15     seizure</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="do">##                section_text</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="do">## 1 Updated seizure phenotype</span></span></code></pre></div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

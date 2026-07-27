@@ -12,16 +12,15 @@ ducksemantics_connect(dbdir = ":memory:", read_only = FALSE, array = "matrix")
 
 - dbdir:
 
-  DuckDB database path, or `":memory:"`.
+  DuckDB path or `":memory:"`.
 
 - read_only:
 
-  Open read-only?
+  Open read-only.
 
 - array:
 
-  DuckDB array conversion mode. The default enables native vector
-  columns to round-trip through R matrices.
+  DuckDB array conversion mode.
 
 ## Value
 

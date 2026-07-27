@@ -1,6 +1,6 @@
-# Create the default DuckDB lexical annotator
+# Create the default lexical grounding provider
 
-Create the default DuckDB lexical annotator
+Create the default lexical grounding provider
 
 ## Usage
 

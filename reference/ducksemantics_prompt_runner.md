@@ -1,6 +1,6 @@
-# Wrap a prompt function as a typed prompt runner
+# Wrap a prompt function as a prompt provider
 
-Wrap a prompt function as a typed prompt runner
+Wrap a prompt function as a prompt provider
 
 ## Usage
 
@@ -12,11 +12,11 @@ ducksemantics_prompt_runner(fun, label = "function")
 
 - fun:
 
-  Function accepting `prompt` and returning response text.
+  Function accepting a prompt and returning response text.
 
 - label:
 
-  Provider label for reports.
+  Provider identity.
 
 ## Value
 

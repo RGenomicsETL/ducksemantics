@@ -1,6 +1,6 @@
-# Tokenize text for semantic grounding
+# Tokenize source text
 
-Tokenize text for semantic grounding
+Tokenize source text
 
 ## Usage
 
@@ -16,5 +16,4 @@ ducksemantics_tokens(text)
 
 ## Value
 
-A data frame with token text, normalized token text, zero-based start
-offset, end offset, and token index.
+Token data frame with zero-based half-open character offsets.

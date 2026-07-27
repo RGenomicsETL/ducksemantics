@@ -1,6 +1,6 @@
-# Write an OBO ontology into the semantic store
+# Write an OBO ontology into the graph
 
-Write an OBO ontology into the semantic store
+Write an OBO ontology into the graph
 
 ## Usage
 
@@ -29,28 +29,28 @@ ducksemantics_write_obo(
 
 - family:
 
-  Graph family label, for example `"HPO"` or `"MONDO"`.
+  Ontology family.
 
 - source:
 
-  Source label stored on alias rows.
+  Alias source identity.
 
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 - replace:
 
-  Delete existing graph rows before writing?
+  Replace graph data.
 
 - index:
 
-  Rebuild the alias index?
+  Rebuild alias index.
 
 - include_obsolete:
 
-  Include terms marked `is_obsolete: true`?
+  Include obsolete terms.
 
 ## Value
 
-The parsed graph rows, invisibly.
+Parsed graph relations, invisibly.

@@ -2,31 +2,25 @@
 
 ## ducksemantics 0.1.0
 
-- Added the first release of the DuckDB-native semantic graph, lexical
-  grounding, dense retrieval, exact late-interaction, structured
-  judgment, and benchmark APIs.
-- Validated the complete HPO 2026-06-23 release: 19,836 active nodes,
-  50,029 aliases, 24,378 direct edges, and 202,740 materialized `is_a`
-  closure rows. Full model runs persisted 19,836 EmbeddingGemma vectors
-  and 182,884 native LFM2.5-ColBERT token vectors.
-- Corrected OBO qualifier parsing, decoded escaped quoted text, and
-  imported alternate identifiers. Full HPO parsing now leaves no
-  dangling qualified `is_a` targets.
-- Made graph writes transactional and idempotent, restored graph indexes
-  after projection and closure replacement, and isolated
-  late-interaction blocks by provider, subject kind, subject, and block
-  identifier.
-- Deduplicated lexical aliases per span and node while assigning unique
-  IDs to ambiguous candidates. Structured judgments now require exact
-  candidate coverage, valid confidence values, and replacements grounded
-  in supplied candidates or graph context.
-- Made embedding caches content- and provider-aware, atomic, resumable,
-  and safe to refresh without deleting unrelated files.
-- Registered S7 methods during namespace loading and tightened table,
-  vector, token metadata, benchmark, and model-provider validation.
-- Replaced causal pooled-state retrieval paths with native
-  EmbeddingGemma and LFM2.5-ColBERT providers. DuckDB VSS/HNSW remains
-  an optional dense candidate-generation layer.
-- Removed the reticulate/FastHPOCR and Rfmalloc runtime surfaces.
-  Ontology and local graph sources now share one graph schema and
-  durable DuckDB vector storage.
+- Sealed package ownership around ontology graphs, validated HPO
+  observations, typed release-cataloged Monarch relations,
+  snapshot-catalog-bound literature retrieval, and source-grounded
+  semantic/provider protocols.
+- Added the final relational HPO observation contract. It validates
+  exact, non-empty zero-based half-open source spans and records
+  context, method, provider identity/version, confidence, and explicit
+  accepted status.
+- Added caller-supplied Monarch gene-phenotype/gene-disease facts with a
+  required typed provider/release catalog. Exact and Date/order as-of
+  queries reject unknown releases; historical gene-disease holdouts are
+  provenance-preserving anti-join audits.
+- Literature retrieval now consumes RClinVarbitration’s caller-owned
+  append-only source-order projection: cataloged integer cutoffs select
+  the latest article event, discard latest deletion events, and join
+  exact same-version sections before returning source spans.
+  ducksemantics neither imports nor stores literature relations.
+- Removed ducksemantics benchmark APIs (owned by VariantStoryBench),
+  generic cache APIs, and S7 wrappers for relations, connections,
+  matrices, batches, queries, indexes, and clustering specifications.
+  Embedding and reranking now use ordinary data frames, matrices, and
+  scalar arguments.

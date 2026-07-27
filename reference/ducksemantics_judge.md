@@ -1,6 +1,6 @@
-# Judge mentions with a model runner
+# Judge lexical candidates with a provider
 
-Judge mentions with a model runner
+Judge lexical candidates with a provider
 
 ## Usage
 
@@ -29,53 +29,48 @@ ducksemantics_judge(
 
 - mentions:
 
-  Mention data frame from
-  [`ducksemantics_annotate()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_annotate.md).
+  Candidate relation.
 
 - runner:
 
-  Object implementing
-  [DucksemanticsPromptRunner](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsPromptRunner.md).
+  Prompt provider.
 
 - conn:
 
-  Optional DBI connection. When supplied with `record = TRUE`, judgments
-  are appended to the judgment table.
+  Optional DBI connection to record judgments.
 
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 - graph_context:
 
-  Optional data frame or list with nearby graph context.
+  Optional graph context.
 
 - instructions:
 
-  Character scalar or vector containing the adjudication policy.
+  Explicit judgment instructions.
 
 - prompt_builder:
 
-  Function that builds the prompt.
+  Function building the prompt.
 
 - parser:
 
-  Object implementing
-  [DucksemanticsJudgmentParser](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsJudgmentParser.md).
+  Judgment parser provider.
 
 - record:
 
-  Append judgments to the judgment table?
+  Record result when `conn` is supplied.
 
 - model:
 
-  Model label recorded with judgments.
+  Provider/model identity.
 
 - ...:
 
-  Extra arguments passed to `prompt_builder`.
+  Arguments passed to `prompt_builder`.
 
 ## Value
 
-A data frame of judgment rows. The prompt and raw response are stored as
-`prompt` and `response` attributes for audit and benchmarking.
+Source-grounded judgment relation.

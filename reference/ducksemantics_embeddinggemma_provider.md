@@ -1,6 +1,6 @@
-# Create an EmbeddingGemma dense retrieval provider
+# Create an EmbeddingGemma provider
 
-Create an EmbeddingGemma dense retrieval provider
+Create an EmbeddingGemma provider
 
 ## Usage
 
@@ -21,25 +21,23 @@ ducksemantics_embeddinggemma_provider(
 
 - model:
 
-  A `Rbebelm` `EmbeddingGemmaModel` object.
+  An `Rbebelm` `EmbeddingGemmaModel`.
 
 - label:
 
-  Provider label for stored dense vectors.
+  Provider identity.
 
 - task:
 
-  EmbeddingGemma task prompt. Use the same task for vectors that will be
-  compared; use the dedicated query/document tasks only as a matched
-  retrieval pair.
+  EmbeddingGemma task.
 
 - title:
 
-  Optional document title, valid only for `retrieval_document`.
+  Optional document title.
 
 - dimensions:
 
-  Matryoshka dimension: 768, 512, 256, or 128.
+  Matryoshka dimension.
 
 - normalize:
 
@@ -47,11 +45,11 @@ ducksemantics_embeddinggemma_provider(
 
 - truncate:
 
-  Truncate inputs longer than EmbeddingGemma's context.
+  Truncate overly long input.
 
 - check_interrupt:
 
-  Poll for R interrupts between bounded native batches.
+  Poll for R interrupts.
 
 ## Value
 

@@ -1,32 +1,55 @@
 # Materialize a fixed-dimension embedding table
 
-DuckDB's HNSW index requires a fixed-size vector type such as
-`FLOAT[384]`. This function projects rows from `semantic_embeddings`
-into a dimensioned table and can create a native HNSW index on that
-table.
+Materialize a fixed-dimension embedding table
 
 ## Usage
 
 ``` r
-ducksemantics_materialize_embedding_index(spec, conn, prefix = "semantic")
+ducksemantics_materialize_embedding_index(
+  conn,
+  dimensions,
+  provider = NULL,
+  subject_kind = NULL,
+  table = NULL,
+  source_table = "semantic_embeddings",
+  hnsw = FALSE,
+  metric = "cosine"
+)
 ```
 
 ## Arguments
-
-- spec:
-
-  A
-  [DucksemanticsEmbeddingIndexSpec](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingIndexSpec.md)
-  object from
-  [`ducksemantics_embedding_index_spec()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_index_spec.md).
 
 - conn:
 
   DBI connection.
 
-- prefix:
+- dimensions:
 
-  Prefix used for semantic tables.
+  Embedding width.
+
+- provider:
+
+  Optional provider filter.
+
+- subject_kind:
+
+  Optional subject kind filter.
+
+- table:
+
+  Target table name.
+
+- source_table:
+
+  Source embedding table.
+
+- hnsw:
+
+  Create an optional DuckDB HNSW index.
+
+- metric:
+
+  HNSW metric.
 
 ## Value
 

@@ -1,32 +1,51 @@
-# Search token embeddings with exact late interaction
+# Exact token-level late-interaction search
 
-Scores stored native ColBERT document blocks with exact MaxSim. For each
-query token, the scorer finds the best matching document token and sums
-those maxima, matching `Rbebelm::colbert_maxsim()` once both matrices
-have been materialized. Use dense EmbeddingGemma/HNSW, aliases, FTS, or
-graph context to reduce large corpora before this reranker.
+Exact token-level late-interaction search
 
 ## Usage
 
 ``` r
-ducksemantics_late_interaction_search(query, conn, prefix = "semantic")
+ducksemantics_late_interaction_search(
+  conn,
+  embeddings,
+  provider = NULL,
+  subject_kind = NULL,
+  top_k = 10L,
+  table = NULL,
+  candidate_subject_id = NULL
+)
 ```
 
 ## Arguments
-
-- query:
-
-  A `DucksemanticsTokenEmbeddingQuery` object from
-  [`ducksemantics_token_embedding_query()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_query.md).
 
 - conn:
 
   DBI connection.
 
-- prefix:
+- embeddings:
 
-  Prefix used for semantic tables.
+  Numeric query-token matrix.
+
+- provider:
+
+  Optional provider identity.
+
+- subject_kind:
+
+  Optional subject-kind filter.
+
+- top_k:
+
+  Number of blocks to return.
+
+- table:
+
+  Caller-selected token embedding table.
+
+- candidate_subject_id:
+
+  Optional candidate restriction.
 
 ## Value
 
-Data frame ordered by descending MaxSim score.
+Ranked exact MaxSim rows.

@@ -1,30 +1,51 @@
-# Search embeddings with DuckDB vector functions
+# Search dense embeddings
 
-Search embeddings with DuckDB vector functions
+Search dense embeddings
 
 ## Usage
 
 ``` r
-ducksemantics_embedding_search(query, conn, prefix = "semantic")
+ducksemantics_embedding_search(
+  conn,
+  embedding,
+  provider = NULL,
+  subject_kind = NULL,
+  top_k = 10L,
+  metric = c("cosine", "cosine_distance", "l2", "inner_product"),
+  table = NULL
+)
 ```
 
 ## Arguments
-
-- query:
-
-  A
-  [DucksemanticsEmbeddingQuery](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingQuery.md)
-  object from
-  [`ducksemantics_embedding_query()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_query.md).
 
 - conn:
 
   DBI connection.
 
-- prefix:
+- embedding:
 
-  Prefix used for semantic tables.
+  Numeric query vector.
+
+- provider:
+
+  Optional provider identity.
+
+- subject_kind:
+
+  Optional subject-kind filter.
+
+- top_k:
+
+  Number of results.
+
+- metric:
+
+  `"cosine"`, `"cosine_distance"`, `"l2"`, or `"inner_product"`.
+
+- table:
+
+  Caller-selected embedding table.
 
 ## Value
 
-Data frame ordered by best match.
+Ranked embedding rows.

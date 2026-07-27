@@ -1,6 +1,7 @@
-# Construct an embedding batch
+# Construct embedding rows
 
-Construct an embedding batch
+Bulk embedding values are an ordinary data frame with one
+`FLOAT[]`-ready numeric vector per row; they are not an S7 value object.
 
 ## Usage
 
@@ -19,24 +20,29 @@ ducksemantics_embedding_batch(
 
 - embeddings:
 
-  Numeric matrix with one row per subject.
+  Finite numeric matrix with one row per subject.
 
 - subject_id:
 
-  Subject identifiers matching embedding rows.
+  Non-empty subject identifiers.
 
 - subject_kind:
 
-  Subject type, e.g. `"node"`, `"alias"`, `"mention"`, or `"document"`.
+  Subject type.
 
 - provider:
 
-  Embedding provider label.
+  Provider identity.
 
 - text:
 
-  Optional source text for each embedding.
+  Optional source text per row.
 
 - attrs:
 
-  Optional JSON text or other metadata for each embedding.
+  Optional metadata text per row.
+
+## Value
+
+A data frame suitable for
+[`ducksemantics_write_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_embeddings.md).

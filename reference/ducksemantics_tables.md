@@ -1,6 +1,6 @@
-# Semantic graph table names
+# Semantic table names
 
-Semantic graph table names
+Semantic table names
 
 ## Usage
 
@@ -12,7 +12,7 @@ ducksemantics_tables(prefix = "semantic")
 
 - prefix:
 
-  Prefix used for generated table names.
+  Table prefix.
 
 ## Value
 

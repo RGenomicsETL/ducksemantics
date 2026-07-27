@@ -1,6 +1,6 @@
-# Create a BebeLM prompt runner
+# Create a BebeLM prompt provider
 
-Create a BebeLM prompt runner
+Create a BebeLM prompt provider
 
 ## Usage
 
@@ -12,11 +12,11 @@ ducksemantics_bebel_runner(agent, on_event = NULL)
 
 - agent:
 
-  A `Rbebelm` agent object.
+  An `Rbebelm` agent.
 
 - on_event:
 
-  Optional Rbebelm event handler.
+  Optional event handler.
 
 ## Value
 

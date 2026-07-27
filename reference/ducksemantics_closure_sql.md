@@ -1,10 +1,6 @@
-# Materialize transitive edge closure
+# Materialize transitive closure SQL
 
-Returns DuckDB SQL that computes
-`target_table(from_id, predicate, to_id)` as the transitive closure of
-`source_table` for the supplied predicates. This is the same
-graph-as-SQL primitive used for ontology ancestors, partonomy, memory
-walks, and arbitrary declared transitive graph relations.
+Materialize transitive closure SQL
 
 ## Usage
 
@@ -20,17 +16,17 @@ ducksemantics_closure_sql(
 
 - transitive_predicates:
 
-  Character vector of predicates to close.
+  Non-empty predicate names, or
+  [`character()`](https://rdrr.io/r/base/character.html).
 
 - source_table:
 
-  Source edge table.
+  Source edge relation.
 
 - target_table:
 
-  Target closure table.
+  Target closure relation.
 
 ## Value
 
-A DuckDB SQL script that replaces the closure table and restores its
-graph indexes.
+SQL script.

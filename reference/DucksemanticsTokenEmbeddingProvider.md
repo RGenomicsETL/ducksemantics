@@ -1,8 +1,6 @@
-# Structural interface for token embedding providers
+# Token-embedding-provider protocol
 
-A token embedding provider accepts a character vector and returns one
-token-embedding object per input text. Each object contains an
-`embeddings` matrix and token metadata.
+Token-embedding-provider protocol
 
 ## Usage
 

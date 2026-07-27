@@ -1,6 +1,6 @@
-# Wrap a token embedding function as a typed token provider
+# Wrap a token embedding function as a token provider
 
-Wrap a token embedding function as a typed token provider
+Wrap a token embedding function as a token provider
 
 ## Usage
 
@@ -12,13 +12,13 @@ ducksemantics_token_embedding_provider(fun, label = "function-token")
 
 - fun:
 
-  Function accepting a character vector and returning one
-  token-embedding object per input text.
+  Function accepting a prompt and returning response text.
 
 - label:
 
-  Provider label for stored token rows.
+  Provider identity.
 
 ## Value
 
-An object implementing `DucksemanticsTokenEmbeddingProvider`.
+An object implementing
+[DucksemanticsTokenEmbeddingProvider](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).

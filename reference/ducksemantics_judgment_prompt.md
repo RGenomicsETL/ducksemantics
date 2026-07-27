@@ -1,6 +1,6 @@
-# Build a semantic judgment prompt
+# Build a source-grounded judgment prompt
 
-Build a semantic judgment prompt
+Build a source-grounded judgment prompt
 
 ## Usage
 
@@ -21,18 +21,15 @@ ducksemantics_judgment_prompt(
 
 - mentions:
 
-  Mention data frame from
-  [`ducksemantics_annotate()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_annotate.md).
+  Candidate data frame.
 
 - graph_context:
 
-  Optional data frame or list with nearby graph context.
+  Optional graph context relation.
 
 - instructions:
 
-  Character scalar or vector containing the adjudication policy. This is
-  deliberately explicit so benchmark runs can vary the policy without
-  changing candidate generation.
+  Explicit judgment policy.
 
 ## Value
 

@@ -1,6 +1,6 @@
-# Wrap an embedding function as a typed embedding provider
+# Wrap an embedding function as an embedding provider
 
-Wrap an embedding function as a typed embedding provider
+Wrap an embedding function as an embedding provider
 
 ## Usage
 
@@ -12,12 +12,11 @@ ducksemantics_embedding_provider(fun, label = "function")
 
 - fun:
 
-  Function accepting a character vector and returning a numeric matrix
-  with one row per input text.
+  Function accepting a prompt and returning response text.
 
 - label:
 
-  Provider label for reports.
+  Provider identity.
 
 ## Value
 

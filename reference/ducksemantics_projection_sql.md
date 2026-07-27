@@ -1,8 +1,6 @@
-# Project any edge-shaped source relation into graph shape
+# Project edge-shaped data to graph SQL
 
-This mirrors the graph projection profile used in pi-bio-agent: a source
-table with caller-named columns becomes a stable graph edge table with
-`from_id`, `predicate`, `to_id`, `attrs`, and `trust`.
+Project edge-shaped data to graph SQL
 
 ## Usage
 
@@ -22,21 +20,20 @@ ducksemantics_projection_sql(
 
 - source_table:
 
-  Source table or view name.
+  Source relation name.
 
 - from, predicate, to:
 
-  Source column names.
+  Source columns.
 
 - target_table:
 
-  Target table name.
+  Target table.
 
 - attrs, trust:
 
-  Optional source columns containing JSON text.
+  Optional source columns.
 
 ## Value
 
-A DuckDB SQL script that replaces the target table and restores its
-graph indexes.
+SQL script.

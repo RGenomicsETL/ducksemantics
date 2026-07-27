@@ -1,6 +1,6 @@
-# Construct a token embedding batch from a provider
+# Construct token embedding rows from a provider
 
-Construct a token embedding batch from a provider
+Construct token embedding rows from a provider
 
 ## Usage
 
@@ -25,33 +25,34 @@ ducksemantics_token_embedding_batch_from_provider(
 
 - provider:
 
-  Object implementing `DucksemanticsTokenEmbeddingProvider`.
+  Object implementing
+  [DucksemanticsTokenEmbeddingProvider](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md).
 
 - subject_id:
 
-  Subject identifiers for input texts. Defaults to `text`.
+  Subject identifiers for input texts.
 
 - subject_kind:
 
-  Subject type for stored token rows.
+  Subject type for stored rows.
 
 - provider_label:
 
-  Stored provider label. Defaults to the provider label when available.
+  Stored provider identity.
 
 - block_id:
 
-  Optional block id per input text.
+  Optional block identifier per input text.
 
 - attrs:
 
-  Optional attrs value per input text.
+  Optional metadata per input text.
 
 - ...:
 
-  Extra arguments passed to
+  Arguments forwarded to
   [`ducksemantics_token_embed()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_provider_generics.md).
 
 ## Value
 
-A `DucksemanticsTokenEmbeddingBatch` object.
+A token-embedding data frame.

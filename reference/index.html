@@ -32,7 +32,7 @@
     </div>
 
     <div class="section level2">
-      <h2 id="graph-store">Graph Store<a class="anchor" aria-label="anchor" href="#graph-store"></a></h2>
+      <h2 id="ontology-graphs">Ontology Graphs<a class="anchor" aria-label="anchor" href="#ontology-graphs"></a></h2>
 
 
 
@@ -67,249 +67,56 @@
           <code><a href="ducksemantics_tables.html">ducksemantics_tables()</a></code>
 
         </dt>
-        <dd>Semantic graph table names</dd>
+        <dd>Semantic table names</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_read_obo.html">ducksemantics_read_obo()</a></code>
+
+        </dt>
+        <dd>Read an OBO ontology into graph relations</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_write_obo.html">ducksemantics_write_obo()</a></code>
+
+        </dt>
+        <dd>Write an OBO ontology into the graph</dd>
 
         <dt>
 
           <code><a href="ducksemantics_write_graph.html">ducksemantics_write_graph()</a></code>
 
         </dt>
-        <dd>Write graph rows into the semantic store</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embedding_batch.html">ducksemantics_embedding_batch()</a></code>
-
-        </dt>
-        <dd>Construct an embedding batch</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_write_embeddings.html">ducksemantics_write_embeddings()</a></code>
-
-        </dt>
-        <dd>Store an embedding batch in DuckDB</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_token_embedding_batch.html">ducksemantics_token_embedding_batch()</a></code>
-
-        </dt>
-        <dd>Construct a token embedding batch</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_token_embedding_batch_from_provider.html">ducksemantics_token_embedding_batch_from_provider()</a></code>
-
-        </dt>
-        <dd>Construct a token embedding batch from a provider</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_write_token_embeddings.html">ducksemantics_write_token_embeddings()</a></code>
-
-        </dt>
-        <dd>Store token embeddings for late-interaction scoring</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_token_embedding_query.html">ducksemantics_token_embedding_query()</a></code>
-
-        </dt>
-        <dd>Construct a token embedding late-interaction query</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_late_interaction_search.html">ducksemantics_late_interaction_search()</a></code>
-
-        </dt>
-        <dd>Search token embeddings with exact late interaction</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embedding_query.html">ducksemantics_embedding_query()</a></code>
-
-        </dt>
-        <dd>Construct an embedding search query</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embedding_search.html">ducksemantics_embedding_search()</a></code>
-
-        </dt>
-        <dd>Search embeddings with DuckDB vector functions</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embedding_index_spec.html">ducksemantics_embedding_index_spec()</a></code>
-
-        </dt>
-        <dd>Construct an embedding index specification</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_materialize_embedding_index.html">ducksemantics_materialize_embedding_index()</a></code>
-
-        </dt>
-        <dd>Materialize a fixed-dimension embedding table</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embedding_cluster_spec.html">ducksemantics_embedding_cluster_spec()</a></code>
-
-        </dt>
-        <dd>Construct an embedding clustering specification</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_cluster_embeddings.html">ducksemantics_cluster_embeddings()</a></code>
-
-        </dt>
-        <dd>Cluster embedding rows</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embedding_cluster_summary.html">ducksemantics_embedding_cluster_summary()</a></code>
-
-        </dt>
-        <dd>Summarize stored embedding clusters</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embedding_cluster_graph_agreement.html">ducksemantics_embedding_cluster_graph_agreement()</a></code>
-
-        </dt>
-        <dd>Compare embedding clusters with graph edges</dd>
+        <dd>Write ontology graph rows</dd>
 
         <dt>
 
           <code><a href="ducksemantics_projection_sql.html">ducksemantics_projection_sql()</a></code>
 
         </dt>
-        <dd>Project any edge-shaped source relation into graph shape</dd>
+        <dd>Project edge-shaped data to graph SQL</dd>
 
         <dt>
 
           <code><a href="ducksemantics_closure_sql.html">ducksemantics_closure_sql()</a></code>
 
         </dt>
-        <dd>Materialize transitive edge closure</dd>
+        <dd>Materialize transitive closure SQL</dd>
 
         <dt>
-
-          <code><a href="ducksemantics_index_stats.html">ducksemantics_index_stats()</a></code>
-
-        </dt>
-        <dd>Summarize semantic index size</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsEmbeddingBatch.html">DucksemanticsEmbeddingBatch()</a></code>
-
-        </dt>
-        <dd>Embedding batch for the semantic store</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsTokenEmbeddingBatch.html">DucksemanticsTokenEmbeddingBatch()</a></code>
-
-        </dt>
-        <dd>Token embedding batch for late-interaction storage</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsTokenEmbeddingQuery.html">DucksemanticsTokenEmbeddingQuery()</a></code>
-
-        </dt>
-        <dd>Token embedding late-interaction query</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsEmbeddingQuery.html">DucksemanticsEmbeddingQuery()</a></code>
-
-        </dt>
-        <dd>Embedding search query</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsEmbeddingIndexSpec.html">DucksemanticsEmbeddingIndexSpec()</a></code>
-
-        </dt>
-        <dd>Embedding index specification</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsEmbeddingClusterSpec.html">DucksemanticsEmbeddingClusterSpec()</a></code>
-
-        </dt>
-        <dd>Embedding clustering specification</dd>
-      </dl></div><div class="section level2">
-      <h2 id="value-types">Value Types<a class="anchor" aria-label="anchor" href="#value-types"></a></h2>
-
-
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="DucksemanticsScalarText.html">DucksemanticsScalarText()</a></code>
-
-        </dt>
-        <dd>Non-empty scalar text</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsSqlIdentifier.html">DucksemanticsSqlIdentifier()</a></code>
-
-        </dt>
-        <dd>SQL identifier</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsDbConnection.html">DucksemanticsDbConnection()</a></code>
-
-        </dt>
-        <dd>DBI connection reference</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsTable.html">DucksemanticsTable</a></code>
-
-        </dt>
-        <dd>Data frame contract</dd>
-
-        <dt>
-
-          <code><a href="DucksemanticsEmbeddingMatrix.html">DucksemanticsEmbeddingMatrix()</a></code>
-
-        </dt>
-        <dd>Embedding matrix contract</dd>
-      </dl></div><div class="section level2">
-      <h2 id="grounding">Grounding<a class="anchor" aria-label="anchor" href="#grounding"></a></h2>
-
-
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
 
           <code><a href="ducksemantics_normalize.html">ducksemantics_normalize()</a></code>
 
         </dt>
-        <dd>Normalize text for semantic grounding</dd>
+        <dd>Normalize semantic text</dd>
 
         <dt>
 
           <code><a href="ducksemantics_tokens.html">ducksemantics_tokens()</a></code>
 
         </dt>
-        <dd>Tokenize text for semantic grounding</dd>
+        <dd>Tokenize source text</dd>
 
         <dt>
 
@@ -323,16 +130,148 @@
           <code><a href="ducksemantics_annotate.html">ducksemantics_annotate()</a></code>
 
         </dt>
-        <dd>Annotate text against the semantic alias index</dd>
+        <dd>Generate lexical HPO/ontology candidates</dd>
+      </dl></div><div class="section level2">
+      <h2 id="hpo-observations">HPO Observations<a class="anchor" aria-label="anchor" href="#hpo-observations"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="ducksemantics_hpo_observation_contract.html">ducksemantics_hpo_observation_contract()</a></code>
+
+        </dt>
+        <dd>HPO observation contract</dd>
 
         <dt>
 
-          <code><a href="ducksemantics_record_judgments.html">ducksemantics_record_judgments()</a></code>
+          <code><a href="ducksemantics_hpo_observations.html">ducksemantics_hpo_observations()</a></code>
 
         </dt>
-        <dd>Record semantic judgments</dd>
+        <dd>Validate accepted HPO observations against source documents</dd>
       </dl></div><div class="section level2">
-      <h2 id="interfaces">Interfaces<a class="anchor" aria-label="anchor" href="#interfaces"></a></h2>
+      <h2 id="monarch-and-literature-relations">Monarch and Literature Relations<a class="anchor" aria-label="anchor" href="#monarch-and-literature-relations"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="ducksemantics_monarch_release_catalog.html">ducksemantics_monarch_release_catalog()</a></code>
+
+        </dt>
+        <dd>Validate a typed Monarch release catalog</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_monarch_import.html">ducksemantics_monarch_import()</a></code>
+
+        </dt>
+        <dd>Import caller-supplied Monarch relations</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_monarch_query.html">ducksemantics_monarch_query()</a></code>
+
+        </dt>
+        <dd>Select one cataloged Monarch release</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_monarch_gene_disease_holdout_audit.html">ducksemantics_monarch_gene_disease_holdout_audit()</a></code>
+
+        </dt>
+        <dd>Audit a historical Monarch gene-disease holdout</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_literature_snapshot_catalog.html">ducksemantics_literature_snapshot_catalog()</a></code>
+
+        </dt>
+        <dd>Validate an append-only literature snapshot catalog</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_literature_retrieve.html">ducksemantics_literature_retrieve()</a></code>
+
+        </dt>
+        <dd>Retrieve exact literature spans from append-only caller-owned relations</dd>
+      </dl></div><div class="section level2">
+      <h2 id="semantic-retrieval">Semantic Retrieval<a class="anchor" aria-label="anchor" href="#semantic-retrieval"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="ducksemantics_embedding_batch.html">ducksemantics_embedding_batch()</a></code>
+
+        </dt>
+        <dd>Construct embedding rows</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_write_embeddings.html">ducksemantics_write_embeddings()</a></code>
+
+        </dt>
+        <dd>Store embedding rows in DuckDB</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_embedding_search.html">ducksemantics_embedding_search()</a></code>
+
+        </dt>
+        <dd>Search dense embeddings</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_materialize_embedding_index.html">ducksemantics_materialize_embedding_index()</a></code>
+
+        </dt>
+        <dd>Materialize a fixed-dimension embedding table</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_token_embedding_batch.html">ducksemantics_token_embedding_batch()</a></code>
+
+        </dt>
+        <dd>Construct token embedding rows</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_token_embedding_batch_from_provider.html">ducksemantics_token_embedding_batch_from_provider()</a></code>
+
+        </dt>
+        <dd>Construct token embedding rows from a provider</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_write_token_embeddings.html">ducksemantics_write_token_embeddings()</a></code>
+
+        </dt>
+        <dd>Store token embedding rows in DuckDB</dd>
+
+        <dt>
+
+          <code><a href="ducksemantics_late_interaction_search.html">ducksemantics_late_interaction_search()</a></code>
+
+        </dt>
+        <dd>Exact token-level late-interaction search</dd>
+      </dl></div><div class="section level2">
+      <h2 id="provider-protocols-and-judgments">Provider Protocols and Judgments<a class="anchor" aria-label="anchor" href="#provider-protocols-and-judgments"></a></h2>
 
 
 
@@ -346,112 +285,98 @@
           <code><a href="DucksemanticsAnnotator.html">DucksemanticsAnnotator</a></code>
 
         </dt>
-        <dd>Structural interface for text annotators</dd>
+        <dd>Grounding-provider protocol</dd>
 
         <dt>
 
           <code><a href="DucksemanticsPromptRunner.html">DucksemanticsPromptRunner</a></code>
 
         </dt>
-        <dd>Structural interface for prompt runners</dd>
+        <dd>Prompt-runner provider protocol</dd>
 
         <dt>
 
           <code><a href="DucksemanticsJudgmentParser.html">DucksemanticsJudgmentParser</a></code>
 
         </dt>
-        <dd>Structural interface for judgment parsers</dd>
+        <dd>Judgment-parser provider protocol</dd>
 
         <dt>
 
           <code><a href="DucksemanticsEmbeddingProvider.html">DucksemanticsEmbeddingProvider</a></code>
 
         </dt>
-        <dd>Structural interface for embedding providers</dd>
+        <dd>Embedding-provider protocol</dd>
 
         <dt>
 
           <code><a href="DucksemanticsTokenEmbeddingProvider.html">DucksemanticsTokenEmbeddingProvider</a></code>
 
         </dt>
-        <dd>Structural interface for token embedding providers</dd>
+        <dd>Token-embedding-provider protocol</dd>
 
         <dt>
 
           <code><a href="ducksemantics_provider_generics.html">ducksemantics_run()</a></code> <code><a href="ducksemantics_provider_generics.html">ducksemantics_embed()</a></code> <code><a href="ducksemantics_provider_generics.html">ducksemantics_token_embed()</a></code> <code><a href="ducksemantics_provider_generics.html">ducksemantics_parse()</a></code> <code><a href="ducksemantics_provider_generics.html">ducksemantics_ground()</a></code>
 
         </dt>
-        <dd>Provider interface generics</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_embed_cached.html">ducksemantics_embed_cached()</a></code>
-
-        </dt>
-        <dd>Cache provider embeddings in durable chunks</dd>
+        <dd>Provider protocol generics</dd>
 
         <dt>
 
           <code><a href="ducksemantics_lexical_annotator.html">ducksemantics_lexical_annotator()</a></code>
 
         </dt>
-        <dd>Create the default DuckDB lexical annotator</dd>
+        <dd>Create the default lexical grounding provider</dd>
 
         <dt>
 
           <code><a href="ducksemantics_prompt_runner.html">ducksemantics_prompt_runner()</a></code>
 
         </dt>
-        <dd>Wrap a prompt function as a typed prompt runner</dd>
+        <dd>Wrap a prompt function as a prompt provider</dd>
 
         <dt>
 
           <code><a href="ducksemantics_embedding_provider.html">ducksemantics_embedding_provider()</a></code>
 
         </dt>
-        <dd>Wrap an embedding function as a typed embedding provider</dd>
+        <dd>Wrap an embedding function as an embedding provider</dd>
 
         <dt>
 
           <code><a href="ducksemantics_token_embedding_provider.html">ducksemantics_token_embedding_provider()</a></code>
 
         </dt>
-        <dd>Wrap a token embedding function as a typed token provider</dd>
+        <dd>Wrap a token embedding function as a token provider</dd>
 
         <dt>
 
           <code><a href="ducksemantics_json_judgment_parser.html">ducksemantics_json_judgment_parser()</a></code>
 
         </dt>
-        <dd>Create the default JSON judgment parser</dd>
+        <dd>Create a JSON judgment parser</dd>
 
         <dt>
 
           <code><a href="ducksemantics_bebel_runner.html">ducksemantics_bebel_runner()</a></code>
 
         </dt>
-        <dd>Create a BebeLM prompt runner</dd>
+        <dd>Create a BebeLM prompt provider</dd>
 
         <dt>
 
           <code><a href="ducksemantics_embeddinggemma_provider.html">ducksemantics_embeddinggemma_provider()</a></code>
 
         </dt>
-        <dd>Create an EmbeddingGemma dense retrieval provider</dd>
+        <dd>Create an EmbeddingGemma provider</dd>
 
         <dt>
 
           <code><a href="ducksemantics_colbert_provider.html">ducksemantics_colbert_provider()</a></code>
 
         </dt>
-        <dd>Create a native ColBERT token-vector provider</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_colbert_query.html">ducksemantics_colbert_query()</a></code>
-
-        </dt>
-        <dd>Construct a ColBERT late-interaction query</dd>
+        <dd>Create a native ColBERT provider</dd>
 
         <dt>
 
@@ -459,110 +384,34 @@
 
         </dt>
         <dd>Create a BebeLM tool-call judgment parser</dd>
-      </dl></div><div class="section level2">
-      <h2 id="model-judgment">Model Judgment<a class="anchor" aria-label="anchor" href="#model-judgment"></a></h2>
 
-
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
+        <dt>
 
           <code><a href="ducksemantics_default_judgment_instructions.html">ducksemantics_default_judgment_instructions()</a></code>
 
         </dt>
-        <dd>Default judgment instructions</dd>
+        <dd>Default source-grounded judgment instructions</dd>
 
         <dt>
 
           <code><a href="ducksemantics_judgment_prompt.html">ducksemantics_judgment_prompt()</a></code>
 
         </dt>
-        <dd>Build a semantic judgment prompt</dd>
+        <dd>Build a source-grounded judgment prompt</dd>
 
         <dt>
 
           <code><a href="ducksemantics_judge.html">ducksemantics_judge()</a></code>
 
         </dt>
-        <dd>Judge mentions with a model runner</dd>
+        <dd>Judge lexical candidates with a provider</dd>
 
         <dt>
 
-          <code><a href="ducksemantics_bebel_judge.html">ducksemantics_bebel_judge()</a></code>
+          <code><a href="ducksemantics_record_judgments.html">ducksemantics_record_judgments()</a></code>
 
         </dt>
-        <dd>Judge mentions with a BebeLM/Rbebelm agent</dd>
-      </dl></div><div class="section level2">
-      <h2 id="ontology-import">Ontology Import<a class="anchor" aria-label="anchor" href="#ontology-import"></a></h2>
-
-
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="ducksemantics_cache_file.html">ducksemantics_cache_file()</a></code>
-
-        </dt>
-        <dd>Cache a source file</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_cache_rds.html">ducksemantics_cache_rds()</a></code>
-
-        </dt>
-        <dd>Cache an R value on disk</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_read_obo.html">ducksemantics_read_obo()</a></code>
-
-        </dt>
-        <dd>Read an OBO ontology into semantic graph rows</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_write_obo.html">ducksemantics_write_obo()</a></code>
-
-        </dt>
-        <dd>Write an OBO ontology into the semantic store</dd>
-      </dl></div><div class="section level2">
-      <h2 id="benchmarking">Benchmarking<a class="anchor" aria-label="anchor" href="#benchmarking"></a></h2>
-
-
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="ducksemantics_benchmark_cases.html">ducksemantics_benchmark_cases()</a></code>
-
-        </dt>
-        <dd>Define benchmark cases</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_benchmark.html">ducksemantics_benchmark()</a></code>
-
-        </dt>
-        <dd>Run a grounding benchmark</dd>
-
-        <dt>
-
-          <code><a href="ducksemantics_benchmark_metrics.html">ducksemantics_benchmark_metrics()</a></code>
-
-        </dt>
-        <dd>Compute benchmark precision and recall</dd>
+        <dd>Record source-grounded judgments</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

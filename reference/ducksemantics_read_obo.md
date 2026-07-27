@@ -1,6 +1,6 @@
-# Read an OBO ontology into semantic graph rows
+# Read an OBO ontology into graph relations
 
-Read an OBO ontology into semantic graph rows
+Read an OBO ontology into graph relations
 
 ## Usage
 
@@ -21,16 +21,16 @@ ducksemantics_read_obo(
 
 - family:
 
-  Graph family label, for example `"HPO"` or `"MONDO"`.
+  Ontology family.
 
 - source:
 
-  Source label stored on alias rows.
+  Alias source identity.
 
 - include_obsolete:
 
-  Include terms marked `is_obsolete: true`?
+  Include obsolete terms.
 
 ## Value
 
-A list with `nodes`, `aliases`, and `edges` data frames.
+A list of `nodes`, `aliases`, and `edges` data frames.

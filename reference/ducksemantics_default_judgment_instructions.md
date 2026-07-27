@@ -1,11 +1,6 @@
-# Default judgment instructions
+# Default source-grounded judgment instructions
 
-These are only the default policy for the judgment prompt. Pass an
-explicit instruction string to
-[`ducksemantics_judgment_prompt()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_judgment_prompt.md)
-or
-[`ducksemantics_judge()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_judge.md)
-when benchmarking a specific adjudication protocol.
+Default source-grounded judgment instructions
 
 ## Usage
 

@@ -1,6 +1,6 @@
-# Create the default JSON judgment parser
+# Create a JSON judgment parser
 
-Create the default JSON judgment parser
+Create a JSON judgment parser
 
 ## Usage
 

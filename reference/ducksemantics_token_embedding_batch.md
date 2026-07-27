@@ -1,6 +1,6 @@
-# Construct a token embedding batch
+# Construct token embedding rows
 
-Construct a token embedding batch
+Construct token embedding rows
 
 ## Usage
 
@@ -23,38 +23,41 @@ ducksemantics_token_embedding_batch(
 
 - embeddings:
 
-  Numeric matrix with one row per token.
+  Finite numeric matrix with one row per subject.
 
 - subject_id:
 
-  Subject identifier for each token row.
+  Non-empty subject identifiers.
 
 - subject_kind:
 
-  Subject type, e.g. `"node"`, `"alias"`, `"mention"`, or `"document"`.
+  Subject type.
 
 - provider:
 
-  Embedding provider label.
+  Provider identity.
 
 - token_index:
 
-  Token index within each subject block. Defaults to zero-based order
-  within `subject_id`.
+  Zero-based token index within a document block.
 
 - block_id:
 
-  Matrix/block identifier. Defaults to one block per `provider`,
-  `subject_kind`, and `subject_id`.
+  Optional block identifier.
 
 - token:
 
-  Optional token text for each row.
+  Optional token text.
 
 - start_offset, end_offset:
 
-  Optional zero-based source offsets.
+  Optional zero-based half-open source offsets.
 
 - attrs:
 
-  Optional JSON text or other metadata for each token row.
+  Optional metadata text per row.
+
+## Value
+
+A data frame suitable for
+[`ducksemantics_write_token_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_token_embeddings.md).

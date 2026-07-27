@@ -12,7 +12,7 @@ ducksemantics_bebel_tool_judgment_parser(tool_name = NULL)
 
 - tool_name:
 
-  Optional accepted tool-call name or names.
+  Accepted tool-call names, or `NULL`.
 
 ## Value
 

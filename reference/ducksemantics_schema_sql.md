@@ -1,9 +1,6 @@
 # DuckDB semantic graph schema
 
-Returns the core SQL DDL for the generic semantic graph and grounding
-contract. The schema is intentionally not HPO-specific: ontology terms,
-local concept graphs, memory nodes, and pi-bio-agent graph projections
-can all use the same node, alias, edge, mention, and judgment tables.
+DuckDB semantic graph schema
 
 ## Usage
 
@@ -15,8 +12,8 @@ ducksemantics_schema_sql(prefix = "semantic")
 
 - prefix:
 
-  Prefix used for the generated table names.
+  Prefix for semantic tables.
 
 ## Value
 
-A character vector of SQL statements.
+Character DDL statements.

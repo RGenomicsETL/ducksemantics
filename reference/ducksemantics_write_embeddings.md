@@ -1,15 +1,13 @@
-# Store an embedding batch in DuckDB
+# Store embedding rows in DuckDB
 
-Embeddings are stored in DuckDB as native `FLOAT[]` vectors. Similarity
-search casts those vectors to fixed-size `FLOAT[N]` arrays so DuckDB's
-vector functions and optional HNSW index can be used directly.
+Store embedding rows in DuckDB
 
 ## Usage
 
 ``` r
 ducksemantics_write_embeddings(
-  batch,
   conn,
+  embeddings,
   prefix = "semantic",
   replace = FALSE
 )
@@ -17,26 +15,23 @@ ducksemantics_write_embeddings(
 
 ## Arguments
 
-- batch:
-
-  A
-  [DucksemanticsEmbeddingBatch](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingBatch.md)
-  object from
-  [`ducksemantics_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_batch.md).
-
 - conn:
 
   DBI connection.
 
+- embeddings:
+
+  Data frame from
+  [`ducksemantics_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_batch.md).
+
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 - replace:
 
-  Delete existing embeddings for the same subjects and provider before
-  inserting?
+  Replace existing rows with the same subject and provider.
 
 ## Value
 
-Invisibly, the written embedding rows.
+Invisibly, written rows.

@@ -1,7 +1,6 @@
-# Structural interface for judgment parsers
+# Judgment-parser provider protocol
 
-A judgment parser turns raw model text into a data frame that includes
-`mention_id` and `decision`.
+Judgment-parser provider protocol
 
 ## Usage
 

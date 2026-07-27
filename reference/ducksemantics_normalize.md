@@ -1,6 +1,6 @@
-# Normalize text for semantic grounding
+# Normalize semantic text
 
-Normalize text for semantic grounding
+Normalize semantic text
 
 ## Usage
 

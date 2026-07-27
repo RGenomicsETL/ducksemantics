@@ -1,9 +1,7 @@
-# Provider interface generics
+# Provider protocol generics
 
-These S7 generics are the behavior required by the structural
-interfaces. Provider packages should define concrete S7 classes and
-methods for these generics, then consuming code can assert the
-corresponding `Ducksemantics*` interface.
+These S7 generics are reserved for real pluggable providers. All bulk
+input and output remains an ordinary data frame or matrix.
 
 ## Usage
 
@@ -52,11 +50,11 @@ ducksemantics_ground(
 
 - response:
 
-  Raw model response text.
+  Raw response text.
 
 - annotator:
 
-  Text-grounding provider.
+  Grounding provider.
 
 - conn:
 
@@ -64,21 +62,20 @@ ducksemantics_ground(
 
 - document_id:
 
-  Optional document id.
+  Optional document identifier.
 
 - prefix:
 
-  Semantic table prefix.
+  Semantic-table prefix.
 
 - longest_match:
 
-  Drop matches contained by a longer span.
+  Drop nested lexical candidates.
 
 - record:
 
-  Append returned rows to the semantic store?
+  Persist candidates.
 
 ## Value
 
-Provider-specific output: response text, embedding matrix, parsed
-judgment data frame, or grounded mention data frame.
+Provider-specific text, matrix, or data frame.

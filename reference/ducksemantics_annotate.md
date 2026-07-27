@@ -1,6 +1,9 @@
-# Annotate text against the semantic alias index
+# Generate lexical HPO/ontology candidates
 
-Annotate text against the semantic alias index
+These candidates are not accepted observations. Use
+[`ducksemantics_hpo_observations()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_hpo_observations.md)
+to validate a separately accepted HPO observation relation against
+source documents.
 
 ## Usage
 
@@ -23,24 +26,24 @@ ducksemantics_annotate(
 
 - text:
 
-  Character scalar.
+  Source text.
 
 - document_id:
 
-  Optional document id.
+  Optional source-document identity.
 
 - prefix:
 
-  Prefix used for semantic tables.
+  Table prefix.
 
 - longest_match:
 
-  Drop matches contained by a longer span.
+  Drop spans contained by a longer span.
 
 - record:
 
-  Append returned mentions to the mentions table?
+  Append candidate rows to the semantic mention table.
 
 ## Value
 
-A data frame of grounded mentions.
+Candidate data frame.

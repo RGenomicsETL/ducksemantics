@@ -1,6 +1,6 @@
 # Package index
 
-## Graph Store
+## Ontology Graphs
 
 - [`ducksemantics_connect()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_connect.md)
   : Connect to a DuckDB semantic store
@@ -9,152 +9,109 @@
 - [`ducksemantics_schema_sql()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_schema_sql.md)
   : DuckDB semantic graph schema
 - [`ducksemantics_tables()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_tables.md)
-  : Semantic graph table names
+  : Semantic table names
+- [`ducksemantics_read_obo()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_read_obo.md)
+  : Read an OBO ontology into graph relations
+- [`ducksemantics_write_obo()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_obo.md)
+  : Write an OBO ontology into the graph
 - [`ducksemantics_write_graph()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_graph.md)
-  : Write graph rows into the semantic store
-- [`ducksemantics_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_batch.md)
-  : Construct an embedding batch
-- [`ducksemantics_write_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_embeddings.md)
-  : Store an embedding batch in DuckDB
-- [`ducksemantics_token_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch.md)
-  : Construct a token embedding batch
-- [`ducksemantics_token_embedding_batch_from_provider()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch_from_provider.md)
-  : Construct a token embedding batch from a provider
-- [`ducksemantics_write_token_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_token_embeddings.md)
-  : Store token embeddings for late-interaction scoring
-- [`ducksemantics_token_embedding_query()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_query.md)
-  : Construct a token embedding late-interaction query
-- [`ducksemantics_late_interaction_search()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_late_interaction_search.md)
-  : Search token embeddings with exact late interaction
-- [`ducksemantics_embedding_query()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_query.md)
-  : Construct an embedding search query
-- [`ducksemantics_embedding_search()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_search.md)
-  : Search embeddings with DuckDB vector functions
-- [`ducksemantics_embedding_index_spec()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_index_spec.md)
-  : Construct an embedding index specification
-- [`ducksemantics_materialize_embedding_index()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_materialize_embedding_index.md)
-  : Materialize a fixed-dimension embedding table
-- [`ducksemantics_embedding_cluster_spec()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_cluster_spec.md)
-  : Construct an embedding clustering specification
-- [`ducksemantics_cluster_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_cluster_embeddings.md)
-  : Cluster embedding rows
-- [`ducksemantics_embedding_cluster_summary()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_cluster_summary.md)
-  : Summarize stored embedding clusters
-- [`ducksemantics_embedding_cluster_graph_agreement()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_cluster_graph_agreement.md)
-  : Compare embedding clusters with graph edges
+  : Write ontology graph rows
 - [`ducksemantics_projection_sql()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_projection_sql.md)
-  : Project any edge-shaped source relation into graph shape
+  : Project edge-shaped data to graph SQL
 - [`ducksemantics_closure_sql()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_closure_sql.md)
-  : Materialize transitive edge closure
-- [`ducksemantics_index_stats()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_index_stats.md)
-  : Summarize semantic index size
-- [`DucksemanticsEmbeddingBatch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingBatch.md)
-  : Embedding batch for the semantic store
-- [`DucksemanticsTokenEmbeddingBatch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingBatch.md)
-  : Token embedding batch for late-interaction storage
-- [`DucksemanticsTokenEmbeddingQuery()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingQuery.md)
-  : Token embedding late-interaction query
-- [`DucksemanticsEmbeddingQuery()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingQuery.md)
-  : Embedding search query
-- [`DucksemanticsEmbeddingIndexSpec()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingIndexSpec.md)
-  : Embedding index specification
-- [`DucksemanticsEmbeddingClusterSpec()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingClusterSpec.md)
-  : Embedding clustering specification
-
-## Value Types
-
-- [`DucksemanticsScalarText()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsScalarText.md)
-  : Non-empty scalar text
-- [`DucksemanticsSqlIdentifier()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsSqlIdentifier.md)
-  : SQL identifier
-- [`DucksemanticsDbConnection()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsDbConnection.md)
-  : DBI connection reference
-- [`DucksemanticsTable`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTable.md)
-  : Data frame contract
-- [`DucksemanticsEmbeddingMatrix()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingMatrix.md)
-  : Embedding matrix contract
-
-## Grounding
-
+  : Materialize transitive closure SQL
 - [`ducksemantics_normalize()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_normalize.md)
-  : Normalize text for semantic grounding
+  : Normalize semantic text
 - [`ducksemantics_tokens()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_tokens.md)
-  : Tokenize text for semantic grounding
+  : Tokenize source text
 - [`ducksemantics_index_aliases()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_index_aliases.md)
   : Build the lexical alias index
 - [`ducksemantics_annotate()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_annotate.md)
-  : Annotate text against the semantic alias index
-- [`ducksemantics_record_judgments()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_record_judgments.md)
-  : Record semantic judgments
+  : Generate lexical HPO/ontology candidates
 
-## Interfaces
+## HPO Observations
+
+- [`ducksemantics_hpo_observation_contract()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_hpo_observation_contract.md)
+  : HPO observation contract
+- [`ducksemantics_hpo_observations()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_hpo_observations.md)
+  : Validate accepted HPO observations against source documents
+
+## Monarch and Literature Relations
+
+- [`ducksemantics_monarch_release_catalog()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_monarch_release_catalog.md)
+  : Validate a typed Monarch release catalog
+- [`ducksemantics_monarch_import()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_monarch_import.md)
+  : Import caller-supplied Monarch relations
+- [`ducksemantics_monarch_query()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_monarch_query.md)
+  : Select one cataloged Monarch release
+- [`ducksemantics_monarch_gene_disease_holdout_audit()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_monarch_gene_disease_holdout_audit.md)
+  : Audit a historical Monarch gene-disease holdout
+- [`ducksemantics_literature_snapshot_catalog()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_literature_snapshot_catalog.md)
+  : Validate an append-only literature snapshot catalog
+- [`ducksemantics_literature_retrieve()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_literature_retrieve.md)
+  : Retrieve exact literature spans from append-only caller-owned
+  relations
+
+## Semantic Retrieval
+
+- [`ducksemantics_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_batch.md)
+  : Construct embedding rows
+- [`ducksemantics_write_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_embeddings.md)
+  : Store embedding rows in DuckDB
+- [`ducksemantics_embedding_search()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_search.md)
+  : Search dense embeddings
+- [`ducksemantics_materialize_embedding_index()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_materialize_embedding_index.md)
+  : Materialize a fixed-dimension embedding table
+- [`ducksemantics_token_embedding_batch()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch.md)
+  : Construct token embedding rows
+- [`ducksemantics_token_embedding_batch_from_provider()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_batch_from_provider.md)
+  : Construct token embedding rows from a provider
+- [`ducksemantics_write_token_embeddings()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_token_embeddings.md)
+  : Store token embedding rows in DuckDB
+- [`ducksemantics_late_interaction_search()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_late_interaction_search.md)
+  : Exact token-level late-interaction search
+
+## Provider Protocols and Judgments
 
 - [`DucksemanticsAnnotator`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsAnnotator.md)
-  : Structural interface for text annotators
+  : Grounding-provider protocol
 - [`DucksemanticsPromptRunner`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsPromptRunner.md)
-  : Structural interface for prompt runners
+  : Prompt-runner provider protocol
 - [`DucksemanticsJudgmentParser`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsJudgmentParser.md)
-  : Structural interface for judgment parsers
+  : Judgment-parser provider protocol
 - [`DucksemanticsEmbeddingProvider`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsEmbeddingProvider.md)
-  : Structural interface for embedding providers
+  : Embedding-provider protocol
 - [`DucksemanticsTokenEmbeddingProvider`](https://sounkou-bioinfo.github.io/ducksemantics/reference/DucksemanticsTokenEmbeddingProvider.md)
-  : Structural interface for token embedding providers
+  : Token-embedding-provider protocol
 - [`ducksemantics_run()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_provider_generics.md)
   [`ducksemantics_embed()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_provider_generics.md)
   [`ducksemantics_token_embed()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_provider_generics.md)
   [`ducksemantics_parse()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_provider_generics.md)
   [`ducksemantics_ground()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_provider_generics.md)
-  : Provider interface generics
-- [`ducksemantics_embed_cached()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embed_cached.md)
-  : Cache provider embeddings in durable chunks
+  : Provider protocol generics
 - [`ducksemantics_lexical_annotator()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_lexical_annotator.md)
-  : Create the default DuckDB lexical annotator
+  : Create the default lexical grounding provider
 - [`ducksemantics_prompt_runner()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_prompt_runner.md)
-  : Wrap a prompt function as a typed prompt runner
+  : Wrap a prompt function as a prompt provider
 - [`ducksemantics_embedding_provider()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embedding_provider.md)
-  : Wrap an embedding function as a typed embedding provider
+  : Wrap an embedding function as an embedding provider
 - [`ducksemantics_token_embedding_provider()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_token_embedding_provider.md)
-  : Wrap a token embedding function as a typed token provider
+  : Wrap a token embedding function as a token provider
 - [`ducksemantics_json_judgment_parser()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_json_judgment_parser.md)
-  : Create the default JSON judgment parser
+  : Create a JSON judgment parser
 - [`ducksemantics_bebel_runner()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_bebel_runner.md)
-  : Create a BebeLM prompt runner
+  : Create a BebeLM prompt provider
 - [`ducksemantics_embeddinggemma_provider()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_embeddinggemma_provider.md)
-  : Create an EmbeddingGemma dense retrieval provider
+  : Create an EmbeddingGemma provider
 - [`ducksemantics_colbert_provider()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_colbert_provider.md)
-  : Create a native ColBERT token-vector provider
-- [`ducksemantics_colbert_query()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_colbert_query.md)
-  : Construct a ColBERT late-interaction query
+  : Create a native ColBERT provider
 - [`ducksemantics_bebel_tool_judgment_parser()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_bebel_tool_judgment_parser.md)
   : Create a BebeLM tool-call judgment parser
-
-## Model Judgment
-
 - [`ducksemantics_default_judgment_instructions()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_default_judgment_instructions.md)
-  : Default judgment instructions
+  : Default source-grounded judgment instructions
 - [`ducksemantics_judgment_prompt()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_judgment_prompt.md)
-  : Build a semantic judgment prompt
+  : Build a source-grounded judgment prompt
 - [`ducksemantics_judge()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_judge.md)
-  : Judge mentions with a model runner
-- [`ducksemantics_bebel_judge()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_bebel_judge.md)
-  : Judge mentions with a BebeLM/Rbebelm agent
-
-## Ontology Import
-
-- [`ducksemantics_cache_file()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_cache_file.md)
-  : Cache a source file
-- [`ducksemantics_cache_rds()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_cache_rds.md)
-  : Cache an R value on disk
-- [`ducksemantics_read_obo()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_read_obo.md)
-  : Read an OBO ontology into semantic graph rows
-- [`ducksemantics_write_obo()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_write_obo.md)
-  : Write an OBO ontology into the semantic store
-
-## Benchmarking
-
-- [`ducksemantics_benchmark_cases()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_benchmark_cases.md)
-  : Define benchmark cases
-- [`ducksemantics_benchmark()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_benchmark.md)
-  : Run a grounding benchmark
-- [`ducksemantics_benchmark_metrics()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_benchmark_metrics.md)
-  : Compute benchmark precision and recall
+  : Judge lexical candidates with a provider
+- [`ducksemantics_record_judgments()`](https://sounkou-bioinfo.github.io/ducksemantics/reference/ducksemantics_record_judgments.md)
+  : Record source-grounded judgments
