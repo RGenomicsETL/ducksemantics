@@ -1,7 +1,7 @@
 Package: ducksemantics
 Type: Package
 Title: DuckDB-Native Semantic and Retrieval Relations
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: c(
     person(given = "Sounkou Mahamane", family = "Toure",
            email = "sounkoutoure@gmail.com", role = c("aut", "cre")),

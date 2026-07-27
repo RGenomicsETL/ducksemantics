@@ -154,12 +154,9 @@ if (requireNamespace("duckdb", quietly = TRUE)) {
   expect_equal(association_rows, 11)
   provenance <- DBI::dbGetQuery(conn, "
     SELECT id, predicate, category, agent_type, knowledge_level,
-      primary_knowledge_source,
-      to_json(aggregator_knowledge_source) AS aggregators,
-      to_json(has_evidence) AS evidence,
-      to_json(publications) AS publications,
-      to_json(qualifiers) AS qualifiers,
-      original_subject, original_object, frequency_qualifier, stage_qualifier,
+      primary_knowledge_source, aggregator_knowledge_source, has_evidence,
+      publications, qualifiers, original_subject, original_object,
+      frequency_qualifier, stage_qualifier,
       subject_taxon, object_taxon
     FROM semantic_monarch_associations
     WHERE id = 'edge-gd-forward'
@@ -170,10 +167,10 @@ if (requireNamespace("duckdb", quietly = TRUE)) {
   expect_equal(provenance$agent_type, 'manual_agent')
   expect_equal(provenance$knowledge_level, 'knowledge_assertion')
   expect_equal(provenance$primary_knowledge_source, 'infores:source')
-  expect_equal(provenance$aggregators, '["infores:monarchinitiative","infores:aggregator"]')
-  expect_equal(provenance$evidence, '["ECO:0001"]')
-  expect_equal(provenance$publications, '["PMID:1"]')
-  expect_equal(provenance$qualifiers, '["subject=human"]')
+  expect_equal(provenance$aggregator_knowledge_source[[1L]], c('infores:monarchinitiative', 'infores:aggregator'))
+  expect_equal(provenance$has_evidence[[1L]], 'ECO:0001')
+  expect_equal(provenance$publications[[1L]], 'PMID:1')
+  expect_equal(provenance$qualifiers[[1L]], 'subject=human')
   expect_equal(provenance$original_subject, 'HGNC:1')
   expect_equal(provenance$original_object, 'MONDO:1')
   expect_equal(provenance$frequency_qualifier, 'HP:0040281')
