@@ -21,6 +21,8 @@
 
 DUCKDB_EXTENSION_EXTERN
 
+bool ducksemantics_register_quant(duckdb_connection connection);
+
 /* ------------------------------------------------------------------------ */
 /* Shared helpers                                                           */
 
@@ -521,6 +523,10 @@ DUCKDB_EXTENSION_ENTRYPOINT(duckdb_connection connection, duckdb_extension_info 
     }
     if (!register_maxsim(connection)) {
         access->set_error(info, "failed to register semantic_maxsim()");
+        return false;
+    }
+    if (!ducksemantics_register_quant(connection)) {
+        access->set_error(info, "failed to register quant validation functions");
         return false;
     }
     return true;
