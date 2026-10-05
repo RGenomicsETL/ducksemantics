@@ -366,6 +366,165 @@ bool quant_vec_dot(uint32_t type, const void *w, uint64_t w_bytes,
     return true;
 }
 
+bool quant_bebel_quantize(const float *x, uint64_t n, quant_bebel_block *scratch,
+                          uint64_t blocks, char *error) {
+    if (n % 256 || blocks < n / 256 || !scratch)
+        return fail(error, "bebelm activation scratch out of bounds");
+    for (uint64_t b = 0; b < n / 256; b++) {
+        quant_bebel_block *a = scratch + b;
+        const float *xb = x + b * 256;
+        float amax = 0;
+        for (unsigned j = 0; j < 256; j++) {
+            if (!isfinite(xb[j])) return fail(error, "activation must contain finite values");
+            amax = fmaxf(amax, fabsf(xb[j]));
+        }
+        a->scale = amax / 127.f;
+        float inv = amax > 0 ? 127.f / amax : 0;
+        if (!isfinite(inv)) return fail(error, "activation scale out of range");
+        memset(a->sums, 0, sizeof(a->sums));
+        for (unsigned j = 0; j < 256; j++) {
+            float q = roundf(xb[j] * inv);
+            a->q[j] = (int8_t)fmaxf(-127.f, fminf(127.f, q));
+            a->sums[j / 32] += a->q[j];
+        }
+    }
+    return true;
+}
+
+static float bebel_reduce(const float *s) {
+    return ((s[0] + s[4]) + (s[2] + s[6])) + ((s[1] + s[5]) + (s[3] + s[7]));
+}
+
+static float bebel_float_dot(uint32_t type, const uint8_t *p, const float *x, uint64_t n) {
+    float sum = 0;
+    if (type == QUANT_Q4_K || type == QUANT_Q6_K) {
+        unsigned bytes = type == QUANT_Q4_K ? 144 : 210;
+        for (uint64_t i = 0; i < n; i += 256, p += bytes) {
+            int8_t q[256];
+            int sc[16], mn[16], group;
+            float d, dm, block = 0;
+            unpack_k(type, p, q, sc, mn, &d, &dm, &group);
+            for (unsigned g = 0; g < 256 / (unsigned)group; g++) {
+                float dot[8] = {0}, sx[8] = {0};
+                for (unsigned j = 0; j < (unsigned)group; j++) {
+                    unsigned k = g * group + j;
+                    dot[j % 8] = fmaf(q[k], x[i + k], dot[j % 8]);
+                    sx[j % 8] += x[i + k];
+                }
+                if (type == QUANT_Q4_K)
+                    block += (d * sc[g]) * bebel_reduce(dot) - (dm * mn[g]) * bebel_reduce(sx);
+                else block += sc[g] * bebel_reduce(dot);
+            }
+            sum += type == QUANT_Q6_K ? d * block : block;
+        }
+        return sum;
+    }
+    float lanes[4][8] = {{0}}, combined[8];
+    uint64_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        unsigned chain = i / 8 % 4;
+        if (i >= n / 32 * 32) chain = 0;
+        for (unsigned j = 0; j < 8; j++) {
+            uint64_t index = i + j;
+            float w = type == QUANT_F32 ? load_float(p + index * 4) :
+                type == QUANT_F16 ? quant_f16_to_f32(le16(p + index * 2)) :
+                quant_f16_to_f32(le16(p + index / 32 * 34)) * signed8(p[index / 32 * 34 + 2 + index % 32]);
+            lanes[chain][j] = fmaf(w, x[index], lanes[chain][j]);
+        }
+    }
+    for (unsigned j = 0; j < 8; j++) combined[j] = (lanes[0][j] + lanes[1][j]) + (lanes[2][j] + lanes[3][j]);
+    sum = bebel_reduce(combined);
+    for (; i < n; i++) {
+        float w = type == QUANT_F32 ? load_float(p + i * 4) : quant_f16_to_f32(le16(p + i * 2));
+        sum += w * x[i];
+    }
+    return sum;
+}
+
+bool quant_bebel_matvec(const quant_view *v, const float *x, bool integer_dot,
+                        uint64_t first, uint64_t count, float *out,
+                        quant_bebel_block *scratch, uint64_t blocks, char *error) {
+    bool kquant = v->type == QUANT_Q4_K || v->type == QUANT_Q6_K;
+    if ((!kquant && v->type != QUANT_F32 && v->type != QUANT_F16 && v->type != QUANT_Q8_0) ||
+        first > v->rows || count > v->rows - first)
+        return fail(error, "unsupported bebelm matvec type or rows");
+    if (integer_dot && kquant) {
+        if (!quant_bebel_quantize(x, v->columns, scratch, blocks, error)) return false;
+    } else {
+        for (uint64_t j = 0; j < v->columns; j++)
+            if (!isfinite(x[j])) return fail(error, "activation must contain finite values");
+    }
+    for (uint64_t row = 0; row < count; row++) {
+        const uint8_t *p = v->data + (first + row) * v->row_stride;
+        if (!integer_dot || !kquant) {
+            out[row] = bebel_float_dot(v->type, p, x, v->columns);
+            continue;
+        }
+        float sum = 0;
+        unsigned bytes = v->type == QUANT_Q4_K ? 144 : 210;
+        for (uint64_t b = 0; b < v->columns / 256; b++, p += bytes) {
+            int8_t q[256];
+            int sc[16], mn[16], group, sd = 0, sm = 0;
+            float d, dm;
+            const quant_bebel_block *a = scratch + b;
+            unpack_k(v->type, p, q, sc, mn, &d, &dm, &group);
+            for (unsigned g = 0; g < 256 / (unsigned)group; g++) {
+                int dot = 0;
+                for (unsigned j = 0; j < (unsigned)group; j++)
+                    dot += q[g * group + j] * a->q[g * group + j];
+                sd += sc[g] * dot;
+                if (v->type == QUANT_Q4_K) sm += mn[g] * a->sums[g];
+            }
+            float value = v->type == QUANT_Q4_K ?
+                a->scale * (d * sd - dm * sm) : a->scale * (d * sd);
+            sum += value;
+        }
+        out[row] = sum;
+    }
+    return true;
+}
+
+bool quant_bebel_matmul(const quant_view *v, const float *x, uint64_t tokens,
+                        float *out, quant_bebel_block *scratch, uint64_t blocks, char *error) {
+    if (v->type != QUANT_Q4_K && v->type != QUANT_Q6_K) {
+        for (uint64_t t = 0; t < tokens; t++)
+            if (!quant_bebel_matvec(v, x + t * v->columns, false, 0, v->rows, out + t * v->rows,
+                                   scratch, blocks, error)) return false;
+        return true;
+    }
+    uint64_t nb = v->columns / 256;
+    if (v->columns % 256 || !nb || tokens > blocks / nb)
+        return fail(error, "bebelm batch scratch out of bounds");
+    for (uint64_t t = 0; t < tokens; t++)
+        if (!quant_bebel_quantize(x + t * v->columns, v->columns, scratch + t * nb, nb, error)) return false;
+    unsigned bytes = v->type == QUANT_Q4_K ? 144 : 210;
+    for (uint64_t row = 0; row < v->rows; row++) {
+        const uint8_t *p = v->data + row * v->row_stride;
+        for (uint64_t t = 0; t < tokens; t++) out[t * v->rows + row] = 0;
+        for (uint64_t b = 0; b < nb; b++, p += bytes) {
+            int8_t q[256];
+            int sc[16], mn[16], group;
+            float d, dm;
+            unpack_k(v->type, p, q, sc, mn, &d, &dm, &group);
+            for (uint64_t t = 0; t < tokens; t++) {
+                const quant_bebel_block *a = scratch + t * nb + b;
+                int sd = 0, sm = 0;
+                for (unsigned g = 0; g < 256 / (unsigned)group; g++) {
+                    int dot = 0;
+                    for (unsigned j = 0; j < (unsigned)group; j++)
+                        dot += q[g * group + j] * a->q[g * group + j];
+                    sd += sc[g] * dot;
+                    if (v->type == QUANT_Q4_K) sm += mn[g] * a->sums[g];
+                }
+                float value = v->type == QUANT_Q4_K ?
+                    a->scale * (d * sd - dm * sm) : a->scale * (d * sd);
+                out[t * v->rows + row] += value;
+            }
+        }
+    }
+    return true;
+}
+
 bool quant_matvec_scratch(const quant_view *v, uint64_t *bytes) {
     uint32_t at = v->type == QUANT_Q8_0 ? QUANT_Q8_0 :
                   v->type >= QUANT_Q2_K && v->type <= QUANT_Q8_K ? QUANT_Q8_K : QUANT_F32;
