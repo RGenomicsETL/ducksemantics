@@ -5,7 +5,7 @@ VERSION       = $(shell sed -n 's/^version:[[:space:]]*//p' description.yml)
 ABI_VERSION   = v1.2.0
 DUCKDB       ?= duckdb
 PLATFORM     ?= $(shell $(DUCKDB) -noheader -list -c 'PRAGMA platform' 2>/dev/null || echo linux_amd64)
-PYTHON       ?= python3
+PYTHON       ?= python3  # test fixtures only
 
 CC           ?= cc
 # -ffp-contract=off keeps float reductions bit-identical across ISAs.
@@ -29,9 +29,8 @@ $(LIBRARY): $(SOURCES) $(HEADERS) Makefile
 	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ $(SOURCES) $(LDLIBS)
 
-$(ARTIFACT): $(LIBRARY) scripts/append_metadata.py description.yml
-	$(PYTHON) scripts/append_metadata.py --library $< --output $@ \
-	  --platform $(PLATFORM) --duckdb-version $(ABI_VERSION) --extension-version $(VERSION)
+$(ARTIFACT): $(LIBRARY) scripts/append_metadata.sh description.yml
+	sh scripts/append_metadata.sh $< $@ $(PLATFORM) $(ABI_VERSION) $(VERSION)
 
 fixtures:
 	$(PYTHON) scripts/make_fixtures.py build/fixtures
