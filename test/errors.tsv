@@ -23,3 +23,18 @@ SELECT semantic_maxsim([[1.0, 0.0]], [[1.0, 0.0, 0.0]]);	different widths
 SELECT semantic_maxsim([[1.0, 0.0], [1.0]], [[1.0, 0.0]]);	different widths
 SELECT semantic_maxsim([[1.0, 0.0], NULL], [[1.0, 0.0]]);	token embedding is NULL
 SELECT semantic_maxsim([[1.0, NULL]], [[1.0, 0.0]]);	contains a NULL element
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'missing', 0, 1);	tensor not found
+SELECT gguf_tensor_values('build/fixtures/truncated.gguf', 'w', 0, 1);	payload overruns the file
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.future', 0, 1);	unsupported quant type
+SELECT gguf_tensor_values('build/fixtures/bad_quant_row.gguf', 'w', 0, 1);	row of 16 is not a multiple
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32', 9, 0);	element range out of bounds
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32', 7, 2);	element range out of bounds
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32', 0, 18446744073709551615::UBIGINT);	element range out of bounds
+SELECT gguf_tensor_values('build/fixtures/valid.gguf' || chr(0), 'w.f32', 0, 1);	must not contain NUL
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32' || chr(0), 0, 1);	must not contain NUL
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.q8_0', list_transform(range(32), x -> 0::FLOAT));	requires rank >= 2
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, 2, 3]);	x length equal to dim[0]
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, NULL, 3, 4]);	must not contain NULL
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, 'NaN'::FLOAT, 3, 4]);	must contain finite
+SELECT gguf_tensor_matvec('build/fixtures/quant.gguf', 'w.8', list_transform(range(512), x -> 1e30::FLOAT));	scale out of range
+SELECT gguf_tensor_matvec('build/fixtures/quant.gguf', 'w.15', list_transform(range(512), x -> 1e-40::FLOAT));	scale out of range
