@@ -510,6 +510,8 @@ static bool register_maxsim(duckdb_connection connection) {
 
 /* ------------------------------------------------------------------------ */
 
+duckdb_state semantic_register_tokenizers(duckdb_connection connection);
+
 DUCKDB_EXTENSION_ENTRYPOINT(duckdb_connection connection, duckdb_extension_info info,
                             struct duckdb_extension_access *access) {
     if (!register_gguf_view(connection, "gguf_header", gguf_header_bind, 1) ||
@@ -521,6 +523,10 @@ DUCKDB_EXTENSION_ENTRYPOINT(duckdb_connection connection, duckdb_extension_info 
     }
     if (!register_maxsim(connection)) {
         access->set_error(info, "failed to register semantic_maxsim()");
+        return false;
+    }
+    if (semantic_register_tokenizers(connection) != DuckDBSuccess) {
+        access->set_error(info, "failed to register tokenizer functions");
         return false;
     }
     return true;

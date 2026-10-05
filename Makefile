@@ -17,8 +17,8 @@ CPPFLAGS     += -D_POSIX_C_SOURCE=200809L -Iduckdb_capi -DDUCKDB_EXTENSION_NAME=
                 -DDUCKDB_EXTENSION_API_VERSION_PATCH=0
 LDLIBS       += -lm
 
-SOURCES = src/ducksemantics_extension.c src/gguf.c
-HEADERS = src/gguf.h duckdb_capi/duckdb_extension.h duckdb_capi/duckdb.h
+SOURCES = src/ducksemantics_extension.c src/gguf.c src/tokenizer.c src/tokenizer_sql.c
+HEADERS = src/gguf.h src/tokenizer.h src/tokenizer_unicode.h duckdb_capi/duckdb_extension.h duckdb_capi/duckdb.h
 LIBRARY = build/lib$(EXTENSION).so
 ARTIFACT = build/$(EXTENSION).duckdb_extension
 
@@ -33,8 +33,17 @@ $(ARTIFACT): $(LIBRARY) scripts/append_metadata.py description.yml
 	$(PYTHON) scripts/append_metadata.py --library $< --output $@ \
 	  --platform $(PLATFORM) --duckdb-version $(ABI_VERSION) --extension-version $(VERSION)
 
-fixtures:
+build/make_tokenizer_fixtures: test/make_tokenizer_fixtures.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -o $@ $<
+
+build/tokenizer_test: test/tokenizer_test.c src/tokenizer.c src/tokenizer.h src/tokenizer_unicode.h src/gguf.c src/gguf.h
+	@mkdir -p build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/tokenizer_test.c src/tokenizer.c src/gguf.c $(LDLIBS)
+
+fixtures: build/make_tokenizer_fixtures build/tokenizer_test
 	$(PYTHON) scripts/make_fixtures.py build/fixtures
+	build/make_tokenizer_fixtures build/fixtures
 
 test: $(ARTIFACT) fixtures
 	DUCKDB=$(DUCKDB) sh test/run.sh $(ARTIFACT)
