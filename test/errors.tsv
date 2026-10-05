@@ -1,0 +1,25 @@
+# SQL<TAB>substring of the expected error
+SELECT * FROM gguf_header('build/fixtures/does_not_exist.gguf');	cannot open
+SELECT * FROM gguf_header('build/fixtures');	is not a regular file
+SELECT * FROM gguf_header(NULL);	GGUF path must be a non-NULL string
+SELECT * FROM gguf_header('build/fixtures/bad_magic.gguf');	does not start with the GGUF magic
+SELECT * FROM gguf_header('build/fixtures/version1.gguf');	GGUF version 1 is not supported
+SELECT * FROM gguf_header('build/fixtures/truncated.gguf');	payload overruns the file
+SELECT * FROM gguf_header('build/fixtures/huge_counts.gguf');	header counts exceed what the file can hold
+SELECT * FROM gguf_header('build/fixtures/string_overrun.gguf');	string of 100 bytes overruns the file
+SELECT * FROM gguf_header('build/fixtures/duplicate_key.gguf');	duplicate metadata key 'general.architecture'
+SELECT * FROM gguf_header('build/fixtures/duplicate_tensor.gguf');	duplicate tensor 'w'
+SELECT * FROM gguf_header('build/fixtures/misaligned.gguf');	offset is not aligned
+SELECT * FROM gguf_header('build/fixtures/payload_overrun.gguf');	payload overruns the file
+SELECT * FROM gguf_header('build/fixtures/too_many_dims.gguf');	has 5 dimensions
+SELECT * FROM gguf_header('build/fixtures/bad_alignment.gguf');	is not a power of two
+SELECT * FROM gguf_header('build/fixtures/partial_block.gguf');	is not a multiple of the q8_0 block
+SELECT * FROM gguf_header('build/fixtures/unknown_value_type.gguf');	unknown type 77
+SELECT * FROM gguf_metadata('build/fixtures/bad_utf8.gguf');	not valid UTF-8
+SELECT * FROM gguf_metadata_array('build/fixtures/valid.gguf', 't.u8');	is not an array
+SELECT * FROM gguf_metadata_array('build/fixtures/valid.gguf', 'missing');	is not an array
+SELECT * FROM gguf_metadata_array('build/fixtures/valid.gguf', NULL);	metadata key must be a non-NULL string
+SELECT semantic_maxsim([[1.0, 0.0]], [[1.0, 0.0, 0.0]]);	different widths
+SELECT semantic_maxsim([[1.0, 0.0], [1.0]], [[1.0, 0.0]]);	different widths
+SELECT semantic_maxsim([[1.0, 0.0], NULL], [[1.0, 0.0]]);	token embedding is NULL
+SELECT semantic_maxsim([[1.0, NULL]], [[1.0, 0.0]]);	contains a NULL element
