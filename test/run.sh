@@ -7,6 +7,12 @@ duckdb=${DUCKDB:-duckdb}
 cd "$(dirname "$0")/.." || exit 1
 failed=0
 
+if "${TOKENIZER_TEST:-build/tokenizer_test}" build/fixtures; then
+    echo "ok   test/tokenizer_test.c"
+else
+    failed=1
+fi
+
 session() {
     { printf "LOAD '%s';\n" "$extension"; cat; } | "$duckdb" -unsigned -bail -noheader -list
 }

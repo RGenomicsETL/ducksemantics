@@ -18,8 +18,10 @@ CPPFLAGS     += -D_POSIX_C_SOURCE=200809L -Iduckdb_capi -DDUCKDB_EXTENSION_NAME=
 LDLIBS       += -lm
 SANITIZE      = -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined
 
-SOURCES = src/ducksemantics_extension.c src/gguf.c src/quant.c src/quant_sql.c
-HEADERS = src/gguf.h src/quant.h duckdb_capi/duckdb_extension.h duckdb_capi/duckdb.h
+SOURCES = src/ducksemantics_extension.c src/gguf.c src/quant.c src/quant_sql.c \
+          src/tokenizer.c src/tokenizer_sql.c
+HEADERS = src/gguf.h src/quant.h src/tokenizer.h src/tokenizer_unicode.h \
+          duckdb_capi/duckdb_extension.h duckdb_capi/duckdb.h
 LIBRARY = build/lib$(EXTENSION).so
 ARTIFACT = build/$(EXTENSION).duckdb_extension
 ASAN_ARTIFACT = build/asan/$(EXTENSION).duckdb_extension
@@ -44,10 +46,19 @@ build/make_quant_fixtures: test/make_quant_fixtures.c src/quant.c src/gguf.c src
 	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/make_quant_fixtures.c src/quant.c src/gguf.c $(LDLIBS)
 
-fixtures: build/make_fixtures build/make_quant_fixtures
+build/make_tokenizer_fixtures: test/make_tokenizer_fixtures.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -o $@ $<
+
+build/tokenizer_test: test/tokenizer_test.c src/tokenizer.c src/tokenizer.h src/tokenizer_unicode.h src/gguf.c src/gguf.h
+	@mkdir -p build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/tokenizer_test.c src/tokenizer.c src/gguf.c $(LDLIBS)
+
+fixtures: build/make_fixtures build/make_quant_fixtures build/make_tokenizer_fixtures build/tokenizer_test
 	@mkdir -p build/fixtures
 	build/make_fixtures build/fixtures
 	build/make_quant_fixtures build/fixtures
+	build/make_tokenizer_fixtures build/fixtures
 
 build/test_quant: test/quant.c src/quant.c src/gguf.c src/quant.h src/gguf.h Makefile
 	@mkdir -p build
@@ -71,8 +82,12 @@ $(ASAN_ARTIFACT): $(SOURCES) $(HEADERS) Makefile
 	  "$$($(CC) -print-file-name=libasan.so)" "$$($(CC) -print-file-name=libubsan.so)" "$$(command -v $(DUCKDB))" \
 	  > build/asan/duckdb && chmod +x build/asan/duckdb
 
-sanitize: $(ASAN_ARTIFACT) fixtures
-	DUCKDB=build/asan/duckdb sh test/run.sh $(ASAN_ARTIFACT)
+build/asan/tokenizer_test: test/tokenizer_test.c src/tokenizer.c src/tokenizer.h src/tokenizer_unicode.h src/gguf.c src/gguf.h
+	@mkdir -p build/asan
+	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -o $@ test/tokenizer_test.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
+
+sanitize: $(ASAN_ARTIFACT) build/asan/tokenizer_test fixtures
+	TOKENIZER_TEST=build/asan/tokenizer_test DUCKDB=build/asan/duckdb sh test/run.sh $(ASAN_ARTIFACT)
 
 build/asan/fuzz_gguf: test/fuzz_gguf.c src/gguf.c src/gguf.h
 	@mkdir -p build/asan

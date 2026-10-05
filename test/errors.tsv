@@ -38,3 +38,15 @@ SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, NULL, 3, 4])
 SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, 'NaN'::FLOAT, 3, 4]);	must contain finite
 SELECT gguf_tensor_matvec('build/fixtures/quant.gguf', 'w.8', list_transform(range(512), x -> 1e30::FLOAT));	scale out of range
 SELECT gguf_tensor_matvec('build/fixtures/quant.gguf', 'w.15', list_transform(range(512), x -> 1e-40::FLOAT));	scale out of range
+SELECT semantic_tokenize('build/fixtures/valid.gguf','x',true);	unsupported GGUF tokenizer
+SELECT semantic_tokenize('build/fixtures/absent.gguf','x',true);	cannot stat tokenizer
+SELECT semantic_tokenize('build/fixtures/tokenizer_missing_types.gguf','x',true);	invalid or missing tokenizer.ggml.token_type
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_bos.gguf','x',true);	bos_token_id outside vocabulary
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_merge.gguf','x',true);	merge operands outside vocabulary
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_utf8.gguf','x',true);	invalid UTF-8 token
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_lengths.gguf','x',true);	invalid or missing tokenizer.ggml.token_type
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_score.gguf','x',true);	non-finite tokenizer score
+SELECT semantic_tokenize('build/fixtures/' || chr(0) || 'tokenizer_lfm.gguf','x',true);	tokenizer path contains NUL
+SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[NULL]::INTEGER[]);	NULL token id
+SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[-1]);	token id outside vocabulary
+SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[267]);	token id outside vocabulary

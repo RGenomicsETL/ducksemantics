@@ -20,6 +20,8 @@ and provider protocols.
 | `gguf_tensor_values(path, tensor, first_element, count)` | scalar `FLOAT[]` slice |
 | `gguf_tensor_matvec(path, tensor, x FLOAT[])` | scalar `FLOAT[]` matrix-vector product |
 | `semantic_maxsim(query FLOAT[][], document FLOAT[][])` | ColBERT late-interaction score: the sum over query tokens of the best dot product with any document token |
+| `semantic_tokenize(path VARCHAR, text VARCHAR, add_special BOOLEAN)` | `INTEGER[]` token ids |
+| `semantic_detokenize(path VARCHAR, ids INTEGER[])` | UTF-8 `VARCHAR` |
 
 ```sql
 LOAD 'build/ducksemantics.duckdb_extension';
@@ -35,6 +37,95 @@ ggml type id is listed with a NULL type name and byte size instead of failing.
 MaxSim. Its reduction order is fixed and the build disables FMA contraction,
 so scores are bit-identical across runs and CPUs. Empty or NULL matrices give
 NULL; mismatched widths or NULL tokens raise errors.
+
+## Tokenizers
+
+Vocabulary, ranked merges, scores, token types and BOS/EOS/unknown ids come
+from validated GGUF metadata. Supported profiles are LFM2/LFM2MoE with the
+`gpt2`/`lfm2` tokenizer and EmbeddingGemma with the `llama` tokenizer.
+Hash tables and a priority queue implement ranked byte BPE and score-priority
+SentencePiece-style BPE, with leftmost tie-breaking. There is no regex runtime,
+embedded vocabulary, or kernel threading.
+
+`add_special = true` prepends BOS for LFM and applies the GGUF BOS/EOS policy
+for Gemma. LFM control/user-defined literals are atomic regardless of this flag.
+Gemma replaces ASCII spaces with U+2581 and adds no dummy leading space.
+Tokenization does not truncate, pad, format chat prompts, or add retrieval
+prefixes. ColBERT callers supply `[Q] ` or `[D] ` explicitly; its encoder applies
+query padding, document truncation and punctuation filtering separately.
+
+LFM decoding follows Rbebelm's byte-character inverse, including representable
+special-token literals. Gemma decoding omits control tokens, converts U+2581 to
+ASCII space and joins byte-fallback tokens. A literal U+2581 input therefore
+normalizes to a space on Gemma round-trip. Invalid decoded byte sequences become
+U+FFFD; invalid UTF-8 input, out-of-range ids and NULL list elements raise errors.
+NULL scalar arguments propagate NULL. Empty text and empty id lists are valid.
+
+An immutable, mutex-protected process cache owns each tokenizer and GGUF mapping,
+keyed by the supplied path, file size and nanosecond mtime. Vocabulary is loaded
+once per identity. Entries, including superseded identities, remain mapped until
+process teardown; workloads using many distinct files retain their vocabulary
+memory. Loading holds the cache lock; encoding and decoding use per-call scratch
+storage without holding it. Model files must remain unchanged while mapped.
+
+### Unicode and verification
+
+The pre-tokenizer uses Unicode 17.0.0 `Alphabetic`, numeric categories
+`Nd`/`Nl`/`No`, and `White_Space`, matching the Rust character predicates.
+Regenerate the committed ranges with:
+
+```sh
+Rscript scripts/generate_tokenizer_unicode.R
+```
+
+The generator downloads `DerivedCoreProperties.txt`, `UnicodeData.txt` and
+`PropList.txt` from the versioned Unicode UCD into `build/unicode-data`, verifies
+pinned checksums, and writes `src/tokenizer_unicode.h`. These are development
+inputs, not build or runtime dependencies.
+
+```sh
+Rscript scripts/audit_tokenizer.R build/ducksemantics.duckdb_extension
+```
+
+The installed Rbebelm 0.3.6.0.1.0 oracle, through DuckDB R 1.5.5 on R 4.6.0,
+matched this 426-string corpus:
+
+| Profile / comparison | Exact sequences | Maximum id error |
+|---|---:|---:|
+| LFM2.5-8B-A1B, with BOS / without BOS | 426 / 426 | 0 |
+| LFM2.5-ColBERT-350M, query / retained document ids | 425 / 425 | 0 |
+| EmbeddingGemma-300M, full with specials / without specials | 424 / 424 | 0 |
+| EmbeddingGemma, context-truncated sequences | 2 | 0 |
+
+LFM decode matched 430 reference strings, including four additional id sequences.
+The corpus covers mixed whitespace, digits, punctuation, emoji, CJK, Arabic,
+accented Latin, combining marks, empty text, code and inputs over 10,000
+characters. Biomedical inputs include titles from the RClinVarbitration XML
+fixtures, ClinVar-style names, and sourced PubMed abstracts in
+`scripts/tokenizer_biomedical.tsv` (PMIDs 8524414 and 28976996).
+Each model is loaded once. Receipts and session information are written under
+`build/tokenizer-audit` as RDS/text files.
+
+ColBERT's R encoder rejects empty text and exposes only padded/truncated retained
+ids, not full raw tokenization or decode. Gemma's R wrapper limits results to
+2,048 tokens and has no sequence decoder: two over-context inputs verify the
+truncation policy, not their full tails. Two other inputs over 10,000 characters
+fit within that context and match in full. Gemma's no-special comparison removes
+BOS/EOS from the reference output. External acceptance uses Rbebelm.
+
+Warm-cache SQL throughput, one DuckDB thread, GCC `-O3`, Intel Core i5-13500;
+200 corpus repetitions, excluding vocabulary/model loading:
+
+| Profile | Tokens processed | Seconds | Tokens/s |
+|---|---:|---:|---:|
+| LFM2.5-8B-A1B | 5,108,600 | 1.097 | 4,656,882 |
+| LFM2.5-ColBERT-350M | 5,869,600 | 1.087 | 5,399,816 |
+| EmbeddingGemma-300M | 5,434,400 | 3.044 | 1,785,283 |
+
+`make test` passes the SQL assertions, 36 expected-error cases and native cache/
+UTF-8 tests. The prescribed ASan/UBSan shared-library run also passes; the native
+cache test additionally passes with ASan leak detection enabled. Tokenizer
+fixtures are produced by `test/make_tokenizer_fixtures.c` through `make fixtures`.
 
 ## Build and test
 
