@@ -23,6 +23,9 @@ and provider protocols.
 | `semantic_tokenize(path VARCHAR, text VARCHAR, add_special BOOLEAN)` | `INTEGER[]` token ids |
 | `semantic_detokenize(path VARCHAR, ids INTEGER[])` | UTF-8 `VARCHAR` |
 | `semantic_embed(path VARCHAR, text VARCHAR, task VARCHAR, dimensions INTEGER, normalize BOOLEAN)` | EmbeddingGemma `FLOAT[]` |
+| `semantic_colbert_encode(path VARCHAR, text VARCHAR, role VARCHAR)` | L2-normalized token vectors as `FLOAT[][]`; role is `'query'` or `'document'` |
+| `semantic_generate(path VARCHAR, prompt VARCHAR, max_tokens INTEGER)` | Greedy LFM2-MoE output as UTF-8 `VARCHAR` |
+| `semantic_next_token_logits(path VARCHAR, prompt VARCHAR, token_ids INTEGER[])` | Raw next-token logits in requested-id order as `FLOAT[]` |
 
 ```sql
 LOAD 'build/ducksemantics.duckdb_extension';
@@ -39,6 +42,152 @@ MaxSim. Its reduction order is fixed and the build disables FMA contraction,
 so scores are bit-identical across runs and CPUs. Empty or NULL matrices give
 NULL; mismatched widths or NULL tokens raise errors.
 
+## ColBERT encoder
+
+`semantic_colbert_encode` runs the closed LFM2.5-ColBERT-350M CPU profile:
+16 layers, 1,024 hidden channels, centered gated short convolutions,
+bidirectional GQA attention with QK RMSNorm and NeoX RoPE, SwiGLU, final
+RMSNorm, and a 128-dimensional token projection. It adds `[Q] ` or `[D] `
+and BOS. Queries retain exactly 32 positions, including PAD expansion vectors;
+documents contextualize at most 512 positions and then remove the token ids
+obtained by encoding individual ASCII punctuation characters without BOS.
+All retained vectors are L2-normalized. Empty text and invalid roles raise
+errors; NULL scalar arguments propagate NULL.
+
+```sql
+SELECT semantic_maxsim(
+  semantic_colbert_encode('colbert.gguf', 'BRCA1 breast cancer', 'query'),
+  semantic_colbert_encode('colbert.gguf', 'BRCA1 variant interpretation', 'document')
+);
+```
+
+`src/lfm2.c` owns immutable process-lifetime model handles behind a mutex,
+keyed by path, size and nanosecond mtime. Loading validates profile metadata,
+tensor names, shapes and dtypes. Weights remain mmapped; only small F32 norm,
+convolution and routing-bias weights are copied. Each call owns its bounded workspace
+(32 query positions or 512 document positions, at most 1 MiB input including
+the retrieval prefix). Superseded identities stay alive for in-flight callers;
+there is no eviction. Model files must remain unchanged while mapped.
+
+The additive `quant_bebel_*` kernels use bebelm's positive amax/127 scales,
+half-away rounding and per-32 sums for K-quant integer dots. Batched products
+unpack each weight block once across tokens. SSE2 integer dots and packed
+single-token K-quant dots preserve the scalar arithmetic; non-SSE2 builds use
+the scalar path. Existing GGML-compatible kernels
+retain their arithmetic. RMSNorm sums f32 squares in f64; softmax sums f32
+exponentials in f64. RoPE advances angles through iterative f32 multiplication.
+Attention dots use explicit `fmaf` and a fixed four-accumulator reduction;
+`-ffp-contract=off` prevents implicit contraction. Notices are in
+`src/lfm2.LICENSE`.
+
+The native kernel, NULL/error SQL, ASan/UBSan and 40,000-mutation GGUF fuzz
+checks run through `make test`, `make sanitize` and `make fuzz`. Model-weight
+verification is separate:
+
+```sh
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 taskset -c 2 \
+  Rscript scripts/audit_colbert.R
+```
+
+The audit writes per-encoding vector errors, pair scores, timings and a summary
+under `build/colbert-audit`. Its corpus includes biomedical queries, PubMed
+abstracts, punctuation, Unicode, PAD expansion and inputs exceeding the query
+and document limits. It compares vectors and token counts through
+`colbert_encode_query`, `colbert_encode_document` and `colbert_embedding_vectors`,
+pair scores through `colbert_maxsim`, and rankings through `colbert_rank`.
+
+Verified on Linux x86-64, R 4.6.0, DuckDB R 1.5.5 and Rbebelm
+0.3.6.0.1.0 (AVX2, one thread), with `LFM2.5-ColBERT-350M-Q4_K_M.gguf`:
+**50 encodings / 1,913 retained token vectors / 624 query-document pairs**.
+Token counts were identical, minimum per-token cosine was **1**, and maximum
+absolute and element-relative vector errors were **0**. MaxSim maximum absolute
+error was **8.64267349243164e-6**, maximum relative error
+**2.98494769515267e-7**; all **24/24 rankings** matched.
+
+On an Intel Core i5-13500, pinned to CPU 4, the C build
+(`-O3 -ffp-contract=off`, SSE2 integer dots) produced **29.5965 query vectors/s**
+and **26.6149 retained document vectors/s**, measured over this corpus including
+loading and allocation. RSS after the C encodings and before loading the
+Rbebelm reference model was **324,348 KiB** (316.746 MiB), including the R/DuckDB
+host. These are observed wall-clock rates, not performance guarantees.
+Other CPUs, Rbebelm backends and weight quantizations are unverified.
+
+## LFM2-MoE generation
+
+The closed LFM2.5-8B-A1B CPU profile has 24 layers, 2,048 hidden channels,
+32 query heads / 8 KV heads, six causal attention layers with QK norms and
+NeoX RoPE, and length-three causal gated convolutions. The first two FFNs are
+dense SwiGLU; the other 22 route to four of 32 experts. Routing ranks sigmoid
+scores plus expert bias, but mixes the selected experts using bias-free sigmoid
+scores divided by their sum plus `1e-6`. The output projection is tied to the
+mapped token embeddings.
+
+```sql
+SELECT semantic_generate('lfm2moe.gguf', 'The first ten prime numbers are', 32);
+SELECT semantic_next_token_logits('lfm2moe.gguf', 'Answer: ', [32, 33, 34, 35]);
+```
+
+Raw-prompt semantics match `Rbebelm::bebel_generate`: BOS is added and supplied
+ChatML framing is honored verbatim. Greedy decoding has no temperature, top-k
+filter or repetition penalty. EOS and sequence-boundary controls stop decoding
+without appearing in the returned text. A generated `</think>` masks those
+controls for the following decision, matching bebelm's answer transition.
+
+The context workspace is capped at **4,096 positions** including generation;
+`max_tokens` is **1..1,024**, and raw prompt input is at most **1 MiB**.
+Requests exceeding these bounds raise errors. There is no sliding-window
+execution. Requested logits accept at most 128,000 non-NULL vocabulary ids;
+order and duplicates are preserved, and an empty request returns `FLOAT[]`.
+NULL scalar arguments propagate NULL. Scores are raw model logits, with no
+generation-control masking or probability normalization.
+
+`lfm2_state_new`, `lfm2_prefill`, `lfm2_state_logits`, `lfm2_decode` and
+`lfm2_state_fork` expose the C state surface in `src/lfm2.h`. Each state owns KV,
+convolution history, absolute position, normalized final hidden state and
+scratch. Forking copies active KV, both history columns and position into
+independent allocations; immutable model weights are borrowed. Decoder state
+leaves the final emitted id pending, as in bebelm; prefill that id before
+continuing. Constructors and operations require initialized non-NULL handles.
+A failed forward operation invalidates the state for further use.
+
+The weight-free cache isolation and packed/unpacked integer-dot tests are in
+`test/lfm2_test.c`. The model-weight oracle builds a native sequence/timing
+runner, compares all generated ids and SQL text to Rbebelm, records the first
+divergence and C top-two logit margin, and verifies two warm-prefix branches
+against cold full-prompt runs:
+
+```sh
+make build/lfm2_oracle
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 taskset -c 2 \
+  Rscript scripts/audit_lfm2moe.R
+```
+
+Artifacts are written under `build/lfm2moe-audit`. A completed native run has
+an input/artifact receipt; `--reuse-native` checks that receipt and still runs
+every R-reference and SQL comparison. Each model is loaded once per process.
+RSS comes from the native C process, excluding the R reference model. Prefill
+includes the prompt's final logits projection; decode includes sampling and
+the subsequent forward steps, matching bebelm's timing split.
+
+Verified on Linux x86-64, R 4.6.0, DuckDB R 1.5.5 and Rbebelm 0.3.6.0.1.0,
+with `LFM2.5-8B-A1B-Q4_K_M.gguf`: **52/52 greedy token sequences and SQL texts
+matched**, including **50 prompts × 32 tokens (1,600 tokens)** plus two raw
+completion prompts, for **1,664 generated tokens** in total. There was **no
+first divergence**; the minimum C top-two logit margin was
+**0.000213623047**. Requested-logit order, duplicate ids and typed empty lists
+also passed. Both shared-prefix continuations matched cold full-prompt runs:
+all five requested logits were bit-exact and all **8 generated ids per branch**
+were identical, with independent KV/convolution/position ownership.
+
+On the Intel Core i5-13500 pinned to CPU 2, one thread, `-O3 -ffp-contract=off`
+with SSE2 integer dots: native **prefill 7.64155646 tokens/s**, native **decode
+6.46806702 tokens/s**, and maximum native RSS **4,991,412 KiB**. SQL throughput
+including prefill and loading was **3.63160192 generated tokens/s**. The tested
+extension SHA256 was
+`9b3b19c65beed67c9b1c5e24218ba4872955b6f777703ec9538ae44219c776f2`.
+These are observed corpus rates; other CPUs, backends and weight quantizations
+are unverified.
+
 ## Tokenizers
 
 Vocabulary, ranked merges, scores, token types and BOS/EOS/unknown ids come
@@ -52,8 +201,9 @@ embedded vocabulary, or kernel threading.
 for Gemma. LFM control/user-defined literals are atomic regardless of this flag.
 Gemma replaces ASCII spaces with U+2581 and adds no dummy leading space.
 Tokenization does not truncate, pad, format chat prompts, or add retrieval
-prefixes. ColBERT callers supply `[Q] ` or `[D] ` explicitly; its encoder applies
-query padding, document truncation and punctuation filtering separately.
+prefixes. For raw ColBERT tokenization, callers supply `[Q] ` or `[D] `
+explicitly; `semantic_colbert_encode` owns retrieval prefixes, query padding,
+document truncation and punctuation filtering.
 
 LFM decoding follows Rbebelm's byte-character inverse, including representable
 special-token literals. Gemma decoding omits control tokens, converts U+2581 to
@@ -123,7 +273,7 @@ Warm-cache SQL throughput, one DuckDB thread, GCC `-O3`, Intel Core i5-13500;
 | LFM2.5-ColBERT-350M | 5,869,600 | 1.087 | 5,399,816 |
 | EmbeddingGemma-300M | 5,434,400 | 3.044 | 1,785,283 |
 
-`make test` passes the SQL assertions, 63 expected-error cases and native cache/
+`make test` passes the SQL assertions, expected-error cases and native cache/
 UTF-8 tests. The prescribed ASan/UBSan shared-library run also passes; the native
 cache test additionally passes with ASan leak detection enabled. Tokenizer
 fixtures are produced by `test/make_tokenizer_fixtures.c` through `make fixtures`.
@@ -372,13 +522,13 @@ Q8_0. All rows passed; the largest error/bound ratio was **0.179762**.
 Bebelm's Rust Q4_K/Q6_K block grouping is the arithmetic reference for the
 K dots. Its activation convention differs from GGML (positive scale and
 half-away rounding), and its Q8_0 matvec uses unquantized f32 activations.
-Thus full matvec bit equality to bebelm is not promised. The installed
+Thus `gguf_tensor_matvec` bit equality to bebelm is not promised. The installed
 Rbebelm exports no raw dot/matvec/dequant operation; a direct comparison
 through its R API remains unverified. Other-platform execution and SIMD
 implementations are also unverified.
 
 `make test` and the specified ASan/UBSan extension suite passed, including
-39 expected-error cases. The native C API tests also passed under ASan/UBSan,
+the expected-error cases. The native C API tests also passed under ASan/UBSan,
 covering row-range equivalence, unaligned scratch and short-buffer errors.
 
 ### One-core microbenchmark
@@ -421,22 +571,20 @@ its unusually low rate is not representative of ordinary BF16 model weights.
 
 Next phases, each validated before the next starts:
 
-1. **Forward pass on CPU.** One decoder family at a time in plain C, as in
-   antirez/ds4: GGUF weights in place, the CPU quant kernels, and logits checked
-   against a reference implementation, starting with the one-layer tiny Llama.
-2. **Typed decisions.** A Jev-compatible `semantic_system_one(state,
+1. **Typed decisions.** A Jev-compatible `semantic_system_one(state,
    questions)` returns per-option probabilities for yes/no, choice and score
    questions. It scores only the allowed option tokens, with no text
    generation or parsing, and returns a receipt of model digest, prompt
    template digest, option token ids and kernel build.
-3. **KV reuse inside DuckDB chunks.** The cache for the shared instruction
+2. **KV reuse inside DuckDB chunks.** The cache for the shared instruction
    prefix is computed once. Within a chunk, rows that share a document reuse
    its KV state and branch per question. A per-thread cache carries a run
    across chunk boundaries, keyed by a hash of the rendered byte prefix as in
    ds4's KV store. Several questions on one document are evaluated inside one
    call in cost order, so an AI filter short-circuits on cached state.
-4. **Encoder-backed decisions.** A Laya-style encoder with a decision head,
-   ColBERT token embeddings, and shared receipts for encoder results.
+3. **Encoder-backed decisions and receipts.** A Laya-style encoder with a
+   decision head, with EmbeddingGemma and ColBERT results behind the same
+   receipts.
 
 Model weights are never bundled; the caller supplies a path and the receipt
 records its digest.

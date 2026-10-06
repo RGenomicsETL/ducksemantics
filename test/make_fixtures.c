@@ -6,6 +6,7 @@
  * id). many.gguf has more keys and tensors than one DuckDB vector. Every other
  * file carries one deliberate defect that the reader must reject cleanly.
  */
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -208,6 +209,34 @@ static void malformed(void) {
     emit("unknown_value_type.gguf", &b);
 }
 
+static void colbert_profile(bool shape) {
+    buf b = {0};
+    static const struct { const char *key; uint32_t value; } fields[] = {
+        {"lfm2.block_count", 16}, {"lfm2.context_length", 128000},
+        {"lfm2.embedding_length", 1024}, {"lfm2.embedding_length_out", 128},
+        {"lfm2.feed_forward_length", 4608}, {"lfm2.attention.head_count", 16},
+        {"lfm2.vocab_size", 64402}, {"lfm2.shortconv.l_cache", 3},
+        {"tokenizer.ggml.bos_token_id", 1}, {"tokenizer.ggml.padding_token_id", 7}
+    };
+    header(&b, "GGUF", 3, shape ? 1 : 0, 15);
+    key(&b, "general.architecture", STR); str(&b, "lfm2");
+    key(&b, "lfm2.attention.causal", BOOL); le(&b, 0, 1);
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        key(&b, fields[i].key, U32); u32(&b, fields[i].value);
+    }
+    key(&b, "lfm2.rope.freq_base", F32); f32(&b, 1000000);
+    key(&b, "lfm2.attention.layer_norm_rms_epsilon", F32); f32(&b, 1e-5f);
+    key(&b, "lfm2.attention.head_count_kv", ARR); u32(&b, I32); u64(&b, 16);
+    for (size_t i = 0; i < 16; i++) u32(&b, i == 2 || i == 5 || i == 8 || i == 10 || i == 12 || i == 14 ? 8 : 0);
+    if (shape) {
+        const uint64_t dims[2] = {4, 2};
+        tensor(&b, "token_embd.weight", 2, dims, 0, 0);
+    }
+    pad(&b, 32);
+    if (shape) zeros(&b, 32);
+    emit(shape ? "colbert_shape.gguf" : "colbert_missing.gguf", &b);
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) {
         fprintf(stderr, "usage: %s DIR\n", argv[0]);
@@ -217,5 +246,7 @@ int main(int argc, char **argv) {
     valid();
     many();
     malformed();
+    colbert_profile(false);
+    colbert_profile(true);
     return 0;
 }

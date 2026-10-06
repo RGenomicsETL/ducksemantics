@@ -62,3 +62,17 @@ SELECT semantic_embed('build/fixtures/gemma_shape.gguf','x','raw',768,true);	ten
 SELECT semantic_embed('build/fixtures/gemma_type.gguf','x','raw',768,true);	tensor token_embd.weight
 SELECT semantic_embed('build/fixtures/gemma_missing.gguf','x','raw',768,true);	tensor token_embd.weight
 SELECT semantic_embed('bad' || chr(0), 'x','raw',768,true);	path contains NUL
+SELECT semantic_colbert_encode('build/fixtures/valid.gguf', 'BRCA1', 'Query');	ColBERT role must be
+SELECT semantic_colbert_encode('build/fixtures/valid.gguf', 'BRCA1', 'query');	unsupported LFM2 profile: general.architecture
+SELECT semantic_colbert_encode('/no/model.gguf', 'BRCA1', 'document');	cannot stat LFM2 model
+SELECT semantic_colbert_encode('', 'BRCA1', 'query');	invalid LFM2 model path
+SELECT semantic_colbert_encode('build/fixtures/colbert_missing.gguf', 'BRCA1', 'query');	missing LFM2 tensor: token_embd.weight
+SELECT semantic_colbert_encode('build/fixtures/colbert_shape.gguf', 'BRCA1', 'query');	LFM2 tensor shape mismatch: token_embd.weight
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', 0);	LFM2 generation length out of bounds
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', -1);	LFM2 generation length out of bounds
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', 1025);	LFM2 generation length out of bounds
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', 32);	unsupported LFM2 profile: general.architecture
+SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [-1]);	LFM2 requested token id must be non-NULL and within vocabulary
+SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [128000]);	LFM2 requested token id must be non-NULL and within vocabulary
+SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [0,NULL]);	LFM2 requested token id must be non-NULL and within vocabulary
+SELECT semantic_next_token_logits('', 'Hello', [0]);	invalid LFM2 model path

@@ -19,8 +19,10 @@ LDLIBS       += -lm -lpthread
 SANITIZE      = -O1 -g -ffp-contract=off -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined
 
 SOURCES = src/ducksemantics_extension.c src/gguf.c src/quant.c src/quant_sql.c \
-          src/tokenizer.c src/tokenizer_sql.c src/embeddinggemma.c src/embeddinggemma_sql.c
+          src/tokenizer.c src/tokenizer_sql.c src/embeddinggemma.c src/embeddinggemma_sql.c \
+          src/lfm2.c src/lfm2_sql.c
 HEADERS = src/gguf.h src/quant.h src/tokenizer.h src/tokenizer_unicode.h src/embeddinggemma.h \
+          src/lfm2.h \
           duckdb_capi/duckdb_extension.h duckdb_capi/duckdb.h
 LIBRARY = build/lib$(EXTENSION).so
 ARTIFACT = build/$(EXTENSION).duckdb_extension
@@ -77,9 +79,20 @@ build/bench_quant: scripts/bench_quant.c src/quant.c src/gguf.c src/quant.h src/
 	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ scripts/bench_quant.c src/quant.c src/gguf.c $(LDLIBS)
 
-test: $(ARTIFACT) fixtures build/test_quant build/embeddinggemma_test
+build/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
+
+build/lfm2_oracle: test/lfm2_oracle.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/lfm2_oracle.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
+
+build/asan/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
+	@mkdir -p build/asan
+	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -ffp-contract=off -o $@ test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
+
+test: $(ARTIFACT) fixtures build/test_quant build/embeddinggemma_test build/lfm2_test
 	build/test_quant
 	build/embeddinggemma_test
+	build/lfm2_test
 	DUCKDB=$(DUCKDB) sh test/run.sh $(ARTIFACT)
 
 # The same suite against an ASan/UBSan build, run inside the DuckDB CLI.
@@ -100,8 +113,9 @@ build/asan/embeddinggemma_test: test/embeddinggemma_test.c src/embeddinggemma.c 
 	@mkdir -p build/asan
 	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -Isrc -o $@ test/embeddinggemma_test.c src/embeddinggemma.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS)
 
-sanitize: $(ASAN_ARTIFACT) build/asan/tokenizer_test build/asan/embeddinggemma_test fixtures
+sanitize: $(ASAN_ARTIFACT) build/asan/tokenizer_test build/asan/embeddinggemma_test build/asan/lfm2_test fixtures
 	build/asan/embeddinggemma_test
+	ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 build/asan/lfm2_test
 	TOKENIZER_TEST=build/asan/tokenizer_test DUCKDB=build/asan/duckdb sh test/run.sh $(ASAN_ARTIFACT)
 
 build/asan/fuzz_gguf: test/fuzz_gguf.c src/gguf.c src/gguf.h

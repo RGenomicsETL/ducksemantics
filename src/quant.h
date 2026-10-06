@@ -71,5 +71,21 @@ bool quant_matvec(const quant_view *v, const float *x, uint64_t n,
 float quant_bebelm_dot(const float *a, const float *b, size_t n);
 void quant_bebelm_matmul(const quant_view *v, const float *x, size_t tokens,
                          float *y, float *row_scratch);
+/* Rbebelm K-quants use positive amax/127 scales and half-away rounding.
+ * Other weight types multiply f32 activations directly. Scratch is caller-owned.
+ */
+typedef struct quant_bebel_block {
+    int8_t q[256];
+    float scale;
+    int32_t sums[8];
+} quant_bebel_block;
+
+bool quant_bebel_quantize(const float *x, uint64_t n, quant_bebel_block *scratch,
+                          uint64_t blocks, char *error);
+bool quant_bebel_matvec(const quant_view *v, const float *x, bool integer_dot,
+                        uint64_t first, uint64_t count, float *out,
+                        quant_bebel_block *scratch, uint64_t blocks, char *error);
+bool quant_bebel_matmul(const quant_view *v, const float *x, uint64_t tokens,
+                        float *out, quant_bebel_block *scratch, uint64_t blocks, char *error);
 
 #endif
