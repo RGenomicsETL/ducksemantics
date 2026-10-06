@@ -26,7 +26,7 @@ int main(void) {
     close_to(rotary[0], cosf(1) - 3 * sinf(1), "RoPE NeoX first half");
     close_to(rotary[3], 2 * sinf(.01f) + 4 * cosf(.01f), "RoPE NeoX second half");
     float bx[6] = {1, 10, 2, 20, 3, 30}, c[6] = {2, 3, 2, 3, 2, 3};
-    float w[6] = {1, 2, 4, 1, 2, 4}, out[6], state[6] = {0};
+    float w[6] = {1, 2, 4, 1, 2, 4}, out[6], state[4] = {0};
     lfm2_conv_centered(bx, c, w, 3, 2, 3, out);
     close_to(out[0], 20, "centered convolution left padding");
     close_to(out[2], 34, "centered convolution interior");
@@ -35,7 +35,18 @@ int main(void) {
     close_to(out[0], 8, "causal convolution empty state");
     close_to(out[2], 20, "causal convolution shift");
     close_to(out[4], 34, "causal convolution full state");
-    check(!memcmp(state, bx, sizeof(bx)), "convolution state order");
+    check(!memcmp(state, bx + 2, sizeof(state)), "convolution state oldest first");
+    lfm2_cache prefix, forked;
+    check(lfm2_cache_init(&prefix, 4, (char[GGUF_ERROR_SIZE]){0}), "cache allocation");
+    prefix.position = 2; prefix.k[2][512] = 3; prefix.v[2][512] = 4; prefix.conv[0][2048] = 5; prefix.norm[0] = 6;
+    check(lfm2_cache_fork(&forked, &prefix, (char[GGUF_ERROR_SIZE]){0}), "cache fork allocation");
+    check(forked.position == 2 && forked.k[2][512] == 3 && forked.v[2][512] == 4 &&
+          forked.conv[0][2048] == 5 && forked.norm[0] == 6, "fork preserves KV, convolution, position and norm");
+    forked.k[2][512] = -1; forked.v[2][512] = -2; forked.conv[0][2048] = -3; forked.position++;
+    check(prefix.k[2][512] == 3 && prefix.v[2][512] == 4 && prefix.conv[0][2048] == 5 && prefix.position == 2,
+          "forked state is independently owned");
+    lfm2_cache_free(&forked); lfm2_cache_free(&prefix);
+    check(!lfm2_cache_init(&prefix, LFM2_MAX_CONTEXT + 1, (char[GGUF_ERROR_SIZE]){0}), "cache workspace bound");
     float q[8] = {0}, k[4] = {1, 0, -1, 0}, v[4] = {2, 4, 6, 8}, scores[2], attended[8];
     lfm2_attention(q, k, v, 2, 2, 1, 2, scores, attended);
     for (size_t i = 0; i < 8; i++) close_to(attended[i], i % 2 ? 6 : 4, "bidirectional GQA values");
@@ -108,6 +119,34 @@ int main(void) {
         expected += product; magnitude += fabs(product);
     }
     check(fabs(scalar[0] - expected) <= 1e-5 * magnitude, "Q6_K rounded activation dot");
+    uint32_t random = 1234567;
+    unsigned char random_weights[1260]; float random_x[1024], vector_y[6], matrix_y[6];
+    for (unsigned kind = 0; kind < 2; kind++) {
+        unsigned type = kind ? QUANT_Q6_K : QUANT_Q4_K, block_bytes = kind ? 210 : 144;
+        quant_view random_view = {.data = random_weights, .columns = 512, .rows = 3,
+                                  .row_stride = 2 * block_bytes, .type = type};
+        for (unsigned trial = 0; trial < 64; trial++) {
+            for (unsigned j = 0; j < 6 * block_bytes; j++) {
+                random = random * 1664525u + 1013904223u; random_weights[j] = (unsigned char)(random >> 24);
+            }
+            for (unsigned b = 0; b < 6; b++) {
+                unsigned at = b * block_bytes;
+                if (kind) { random_weights[at + 208] = 0; random_weights[at + 209] = 0x28; }
+                else {
+                    random_weights[at] = 0; random_weights[at + 1] = 0x38;
+                    random_weights[at + 2] = 0; random_weights[at + 3] = 0x30;
+                }
+            }
+            for (unsigned j = 0; j < 1024; j++) {
+                random = random * 1664525u + 1013904223u; random_x[j] = ((int)(random >> 24) - 128) / 67.f;
+            }
+            for (unsigned t = 0; t < 2; t++)
+                check(quant_bebel_matvec(&random_view, random_x + t * 512, true, 0, 3, vector_y + t * 3,
+                                        scratch, 4, error), error);
+            check(quant_bebel_matmul(&random_view, random_x, 2, matrix_y, scratch, 4, error), error);
+            check(!memcmp(vector_y, matrix_y, sizeof(vector_y)), "packed/unpacked integer dot parity");
+        }
+    }
     check(lfm2_model_get("build/fixtures/valid.gguf", error) == NULL, "closed architecture profile");
     puts("lfm2_test: RMSNorm, RoPE, convolution, GQA, bebelm quantization OK");
     return 0;

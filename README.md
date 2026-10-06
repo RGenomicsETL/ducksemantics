@@ -23,6 +23,8 @@ and provider protocols.
 | `semantic_tokenize(path VARCHAR, text VARCHAR, add_special BOOLEAN)` | `INTEGER[]` token ids |
 | `semantic_detokenize(path VARCHAR, ids INTEGER[])` | UTF-8 `VARCHAR` |
 | `semantic_colbert_encode(path VARCHAR, text VARCHAR, role VARCHAR)` | L2-normalized token vectors as `FLOAT[][]`; role is `'query'` or `'document'` |
+| `semantic_generate(path VARCHAR, prompt VARCHAR, max_tokens INTEGER)` | Greedy LFM2-MoE output as UTF-8 `VARCHAR` |
+| `semantic_next_token_logits(path VARCHAR, prompt VARCHAR, token_ids INTEGER[])` | Raw next-token logits in requested-id order as `FLOAT[]` |
 
 ```sql
 LOAD 'build/ducksemantics.duckdb_extension';
@@ -60,15 +62,17 @@ SELECT semantic_maxsim(
 
 `src/lfm2.c` owns immutable process-lifetime model handles behind a mutex,
 keyed by path, size and nanosecond mtime. Loading validates profile metadata,
-tensor names, shapes and dtypes. Weights remain mmapped; only small F32 norm
-and convolution weights are copied. Each call owns its bounded workspace
+tensor names, shapes and dtypes. Weights remain mmapped; only small F32 norm,
+convolution and routing-bias weights are copied. Each call owns its bounded workspace
 (32 query positions or 512 document positions, at most 1 MiB input including
 the retrieval prefix). Superseded identities stay alive for in-flight callers;
 there is no eviction. Model files must remain unchanged while mapped.
 
 The additive `quant_bebel_*` kernels use bebelm's positive amax/127 scales,
 half-away rounding and per-32 sums for K-quant integer dots. Batched products
-unpack each weight block once across tokens. Existing GGML-compatible kernels
+unpack each weight block once across tokens. SSE2 integer dots and packed
+single-token K-quant dots preserve the scalar arithmetic; non-SSE2 builds use
+the scalar path. Existing GGML-compatible kernels
 retain their arithmetic. RMSNorm sums f32 squares in f64; softmax sums f32
 exponentials in f64. RoPE advances angles through iterative f32 multiplication.
 Attention dots use explicit `fmaf` and a fixed four-accumulator reduction;
@@ -99,13 +103,89 @@ absolute and element-relative vector errors were **0**. MaxSim maximum absolute
 error was **8.64267349243164e-6**, maximum relative error
 **2.98494769515267e-7**; all **24/24 rankings** matched.
 
-On an Intel Core i5-13500, pinned to CPU 2, the portable C build
-(`-O3 -ffp-contract=off`) produced **4.91734 query vectors/s** and
-**4.63456 retained document vectors/s**, measured over this corpus including
+On an Intel Core i5-13500, pinned to CPU 4, the C build
+(`-O3 -ffp-contract=off`, SSE2 integer dots) produced **29.5965 query vectors/s**
+and **26.6149 retained document vectors/s**, measured over this corpus including
 loading and allocation. RSS after the C encodings and before loading the
-Rbebelm reference model was **324,184 KiB** (316.586 MiB), including the R/DuckDB
+Rbebelm reference model was **324,348 KiB** (316.746 MiB), including the R/DuckDB
 host. These are observed wall-clock rates, not performance guarantees.
 Other CPUs, Rbebelm backends and weight quantizations are unverified.
+
+## LFM2-MoE generation
+
+The closed LFM2.5-8B-A1B CPU profile has 24 layers, 2,048 hidden channels,
+32 query heads / 8 KV heads, six causal attention layers with QK norms and
+NeoX RoPE, and length-three causal gated convolutions. The first two FFNs are
+dense SwiGLU; the other 22 route to four of 32 experts. Routing ranks sigmoid
+scores plus expert bias, but mixes the selected experts using bias-free sigmoid
+scores divided by their sum plus `1e-6`. The output projection is tied to the
+mapped token embeddings.
+
+```sql
+SELECT semantic_generate('lfm2moe.gguf', 'The first ten prime numbers are', 32);
+SELECT semantic_next_token_logits('lfm2moe.gguf', 'Answer: ', [32, 33, 34, 35]);
+```
+
+Raw-prompt semantics match `Rbebelm::bebel_generate`: BOS is added and supplied
+ChatML framing is honored verbatim. Greedy decoding has no temperature, top-k
+filter or repetition penalty. EOS and sequence-boundary controls stop decoding
+without appearing in the returned text. A generated `</think>` masks those
+controls for the following decision, matching bebelm's answer transition.
+
+The context workspace is capped at **4,096 positions** including generation;
+`max_tokens` is **1..1,024**, and raw prompt input is at most **1 MiB**.
+Requests exceeding these bounds raise errors. There is no sliding-window
+execution. Requested logits accept at most 128,000 non-NULL vocabulary ids;
+order and duplicates are preserved, and an empty request returns `FLOAT[]`.
+NULL scalar arguments propagate NULL. Scores are raw model logits, with no
+generation-control masking or probability normalization.
+
+`lfm2_state_new`, `lfm2_prefill`, `lfm2_state_logits`, `lfm2_decode` and
+`lfm2_state_fork` expose the C state surface in `src/lfm2.h`. Each state owns KV,
+convolution history, absolute position, normalized final hidden state and
+scratch. Forking copies active KV, both history columns and position into
+independent allocations; immutable model weights are borrowed. Decoder state
+leaves the final emitted id pending, as in bebelm; prefill that id before
+continuing. Constructors and operations require initialized non-NULL handles.
+A failed forward operation invalidates the state for further use.
+
+The weight-free cache isolation and packed/unpacked integer-dot tests are in
+`test/lfm2_test.c`. The model-weight oracle builds a native sequence/timing
+runner, compares all generated ids and SQL text to Rbebelm, records the first
+divergence and C top-two logit margin, and verifies two warm-prefix branches
+against cold full-prompt runs:
+
+```sh
+make build/lfm2_oracle
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 taskset -c 2 \
+  Rscript scripts/audit_lfm2moe.R
+```
+
+Artifacts are written under `build/lfm2moe-audit`. A completed native run has
+an input/artifact receipt; `--reuse-native` checks that receipt and still runs
+every R-reference and SQL comparison. Each model is loaded once per process.
+RSS comes from the native C process, excluding the R reference model. Prefill
+includes the prompt's final logits projection; decode includes sampling and
+the subsequent forward steps, matching bebelm's timing split.
+
+Verified on Linux x86-64, R 4.6.0, DuckDB R 1.5.5 and Rbebelm 0.3.6.0.1.0,
+with `LFM2.5-8B-A1B-Q4_K_M.gguf`: **52/52 greedy token sequences and SQL texts
+matched**, including **50 prompts × 32 tokens (1,600 tokens)** plus two raw
+completion prompts, for **1,664 generated tokens** in total. There was **no
+first divergence**; the minimum C top-two logit margin was
+**0.000213623047**. Requested-logit order, duplicate ids and typed empty lists
+also passed. Both shared-prefix continuations matched cold full-prompt runs:
+all five requested logits were bit-exact and all **8 generated ids per branch**
+were identical, with independent KV/convolution/position ownership.
+
+On the Intel Core i5-13500 pinned to CPU 2, one thread, `-O3 -ffp-contract=off`
+with SSE2 integer dots: native **prefill 7.64155646 tokens/s**, native **decode
+6.46806702 tokens/s**, and maximum native RSS **4,991,412 KiB**. SQL throughput
+including prefill and loading was **3.63160192 generated tokens/s**. The tested
+extension SHA256 was
+`9b3b19c65beed67c9b1c5e24218ba4872955b6f777703ec9538ae44219c776f2`.
+These are observed corpus rates; other CPUs, backends and weight quantizations
+are unverified.
 
 ## Tokenizers
 
@@ -389,21 +469,18 @@ its unusually low rate is not representative of ordinary BF16 model weights.
 
 Next phases, each validated before the next starts:
 
-1. **LFM2-MoE generation.** Greedy decoding with attention KV, short-convolution
-   state and position in a forkable cache. Weights stay mapped, with logits and
-   greedy sequences checked against Rbebelm.
-2. **Typed decisions.** A Jev-compatible `semantic_system_one(state,
+1. **Typed decisions.** A Jev-compatible `semantic_system_one(state,
    questions)` returns per-option probabilities for yes/no, choice and score
    questions. It scores only the allowed option tokens, with no text
    generation or parsing, and returns a receipt of model digest, prompt
    template digest, option token ids and kernel build.
-3. **KV reuse inside DuckDB chunks.** The cache for the shared instruction
+2. **KV reuse inside DuckDB chunks.** The cache for the shared instruction
    prefix is computed once. Within a chunk, rows that share a document reuse
    its KV state and branch per question. A per-thread cache carries a run
    across chunk boundaries, keyed by a hash of the rendered byte prefix as in
    ds4's KV store. Several questions on one document are evaluated inside one
    call in cost order, so an AI filter short-circuits on cached state.
-4. **Sentence embeddings and receipts.** EmbeddingGemma and a Laya-style
+3. **Sentence embeddings and receipts.** EmbeddingGemma and a Laya-style
    encoder with a decision head, alongside ColBERT behind the same receipts.
 
 Model weights are never bundled; the caller supplies a path and the receipt

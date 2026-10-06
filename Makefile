@@ -71,6 +71,9 @@ build/bench_quant: scripts/bench_quant.c src/quant.c src/gguf.c src/quant.h src/
 build/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
 
+build/lfm2_oracle: test/lfm2_oracle.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/lfm2_oracle.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
+
 build/asan/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
 	@mkdir -p build/asan
 	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -ffp-contract=off -o $@ test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread

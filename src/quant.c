@@ -10,6 +10,9 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#if defined(__SSE2__)
+#include <emmintrin.h>
+#endif
 
 static bool fail(char *error, const char *message) {
     snprintf(error, GGUF_ERROR_SIZE, "%s", message);
@@ -391,6 +394,81 @@ bool quant_bebel_quantize(const float *x, uint64_t n, quant_bebel_block *scratch
     return true;
 }
 
+static int bebel_int_dot(const int8_t *q, const int8_t *x, unsigned n) {
+#if defined(__SSE2__)
+    __m128i sum = _mm_setzero_si128(), zero = _mm_setzero_si128();
+    for (unsigned j = 0; j < n; j += 16) {
+        __m128i a = _mm_loadu_si128((const __m128i *)(q + j));
+        __m128i b = _mm_loadu_si128((const __m128i *)(x + j));
+        __m128i sa = _mm_cmpgt_epi8(zero, a), sb = _mm_cmpgt_epi8(zero, b);
+        sum = _mm_add_epi32(sum, _mm_madd_epi16(_mm_unpacklo_epi8(a, sa), _mm_unpacklo_epi8(b, sb)));
+        sum = _mm_add_epi32(sum, _mm_madd_epi16(_mm_unpackhi_epi8(a, sa), _mm_unpackhi_epi8(b, sb)));
+    }
+    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2)));
+    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, _MM_SHUFFLE(2, 3, 0, 1)));
+    return _mm_cvtsi128_si32(sum);
+#else
+    int sum = 0;
+    for (unsigned j = 0; j < n; j++) sum += q[j] * x[j];
+    return sum;
+#endif
+}
+
+#if defined(__SSE2__)
+static void q4_scale_min(const uint8_t *s, unsigned j, int *scale, int *min) {
+    *scale = j < 4 ? s[j] & 63 : (s[j + 4] & 15) | ((s[j - 4] >> 6) << 4);
+    *min = j < 4 ? s[j + 4] & 63 : (s[j + 4] >> 4) | ((s[j] >> 6) << 4);
+}
+
+static int packed_dot16(__m128i a, const int8_t *x, bool unsigned_a) {
+    __m128i zero = _mm_setzero_si128(), b = _mm_loadu_si128((const __m128i *)x);
+    __m128i sa = unsigned_a ? zero : _mm_cmpgt_epi8(zero, a), sb = _mm_cmpgt_epi8(zero, b);
+    __m128i sum = _mm_add_epi32(
+        _mm_madd_epi16(_mm_unpacklo_epi8(a, sa), _mm_unpacklo_epi8(b, sb)),
+        _mm_madd_epi16(_mm_unpackhi_epi8(a, sa), _mm_unpackhi_epi8(b, sb)));
+    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2)));
+    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, _MM_SHUFFLE(2, 3, 0, 1)));
+    return _mm_cvtsi128_si32(sum);
+}
+
+static float bebel_packed_dot(uint32_t type, const uint8_t *p, const quant_bebel_block *a) {
+    __m128i mask = _mm_set1_epi8(15);
+    int sd = 0, sm = 0;
+    if (type == QUANT_Q4_K) {
+        for (unsigned g = 0; g < 4; g++) {
+            int lo = 0, hi = 0, sc0, sc1, mn0, mn1;
+            q4_scale_min(p + 4, 2 * g, &sc0, &mn0); q4_scale_min(p + 4, 2 * g + 1, &sc1, &mn1);
+            for (unsigned j = 0; j < 32; j += 16) {
+                __m128i bits = _mm_loadu_si128((const __m128i *)(p + 16 + g * 32 + j));
+                lo += packed_dot16(_mm_and_si128(bits, mask), a->q + g * 64 + j, true);
+                hi += packed_dot16(_mm_and_si128(_mm_srli_epi16(bits, 4), mask), a->q + g * 64 + 32 + j, true);
+            }
+            sd += sc0 * lo + sc1 * hi;
+            sm += mn0 * a->sums[2 * g] + mn1 * a->sums[2 * g + 1];
+        }
+        return a->scale * (quant_f16_to_f32(le16(p)) * sd - quant_f16_to_f32(le16(p + 2)) * sm);
+    }
+    __m128i two = _mm_set1_epi8(3), offset = _mm_set1_epi8(32);
+    for (unsigned half = 0; half < 2; half++) {
+        for (unsigned j = 0; j < 32; j += 16) {
+            __m128i lo = _mm_loadu_si128((const __m128i *)(p + half * 64 + j));
+            __m128i hi = _mm_loadu_si128((const __m128i *)(p + half * 64 + 32 + j));
+            __m128i high = _mm_loadu_si128((const __m128i *)(p + 128 + half * 32 + j));
+            __m128i q[4];
+            q[0] = _mm_or_si128(_mm_and_si128(lo, mask), _mm_slli_epi16(_mm_and_si128(high, two), 4));
+            q[1] = _mm_or_si128(_mm_and_si128(hi, mask), _mm_slli_epi16(_mm_and_si128(_mm_srli_epi16(high, 2), two), 4));
+            q[2] = _mm_or_si128(_mm_and_si128(_mm_srli_epi16(lo, 4), mask), _mm_slli_epi16(_mm_and_si128(_mm_srli_epi16(high, 4), two), 4));
+            q[3] = _mm_or_si128(_mm_and_si128(_mm_srli_epi16(hi, 4), mask), _mm_slli_epi16(_mm_and_si128(_mm_srli_epi16(high, 6), two), 4));
+            for (unsigned g = 0; g < 4; g++) {
+                int dot = packed_dot16(_mm_sub_epi8(q[g], offset), a->q + half * 128 + g * 32 + j, false);
+                sd += signed8(p[192 + half * 8 + g * 2 + j / 16]) * dot;
+            }
+        }
+    }
+    return a->scale * (quant_f16_to_f32(le16(p + 208)) * sd);
+}
+#endif
+
 static float bebel_reduce(const float *s) {
     return ((s[0] + s[4]) + (s[2] + s[6])) + ((s[1] + s[5]) + (s[3] + s[7]));
 }
@@ -463,21 +541,23 @@ bool quant_bebel_matvec(const quant_view *v, const float *x, bool integer_dot,
         float sum = 0;
         unsigned bytes = v->type == QUANT_Q4_K ? 144 : 210;
         for (uint64_t b = 0; b < v->columns / 256; b++, p += bytes) {
+#if defined(__SSE2__)
+            sum += bebel_packed_dot(v->type, p, scratch + b);
+#else
             int8_t q[256];
             int sc[16], mn[16], group, sd = 0, sm = 0;
             float d, dm;
             const quant_bebel_block *a = scratch + b;
             unpack_k(v->type, p, q, sc, mn, &d, &dm, &group);
             for (unsigned g = 0; g < 256 / (unsigned)group; g++) {
-                int dot = 0;
-                for (unsigned j = 0; j < (unsigned)group; j++)
-                    dot += q[g * group + j] * a->q[g * group + j];
+                int dot = bebel_int_dot(q + g * group, a->q + g * group, (unsigned)group);
                 sd += sc[g] * dot;
                 if (v->type == QUANT_Q4_K) sm += mn[g] * a->sums[g];
             }
             float value = v->type == QUANT_Q4_K ?
                 a->scale * (d * sd - dm * sm) : a->scale * (d * sd);
             sum += value;
+#endif
         }
         out[row] = sum;
     }
@@ -510,9 +590,7 @@ bool quant_bebel_matmul(const quant_view *v, const float *x, uint64_t tokens,
                 const quant_bebel_block *a = scratch + t * nb + b;
                 int sd = 0, sm = 0;
                 for (unsigned g = 0; g < 256 / (unsigned)group; g++) {
-                    int dot = 0;
-                    for (unsigned j = 0; j < (unsigned)group; j++)
-                        dot += q[g * group + j] * a->q[g * group + j];
+                    int dot = bebel_int_dot(q + g * group, a->q + g * group, (unsigned)group);
                     sd += sc[g] * dot;
                     if (v->type == QUANT_Q4_K) sm += mn[g] * a->sums[g];
                 }
