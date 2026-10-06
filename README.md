@@ -22,6 +22,7 @@ and provider protocols.
 | `semantic_maxsim(query FLOAT[][], document FLOAT[][])` | ColBERT late-interaction score: the sum over query tokens of the best dot product with any document token |
 | `semantic_tokenize(path VARCHAR, text VARCHAR, add_special BOOLEAN)` | `INTEGER[]` token ids |
 | `semantic_detokenize(path VARCHAR, ids INTEGER[])` | UTF-8 `VARCHAR` |
+| `semantic_embed(path VARCHAR, text VARCHAR, task VARCHAR, dimensions INTEGER, normalize BOOLEAN)` | EmbeddingGemma `FLOAT[]` |
 
 ```sql
 LOAD 'build/ducksemantics.duckdb_extension';
@@ -122,10 +123,111 @@ Warm-cache SQL throughput, one DuckDB thread, GCC `-O3`, Intel Core i5-13500;
 | LFM2.5-ColBERT-350M | 5,869,600 | 1.087 | 5,399,816 |
 | EmbeddingGemma-300M | 5,434,400 | 3.044 | 1,785,283 |
 
-`make test` passes the SQL assertions, 36 expected-error cases and native cache/
+`make test` passes the SQL assertions, 63 expected-error cases and native cache/
 UTF-8 tests. The prescribed ASan/UBSan shared-library run also passes; the native
 cache test additionally passes with ASan leak detection enabled. Tokenizer
 fixtures are produced by `test/make_tokenizer_fixtures.c` through `make fixtures`.
+
+## EmbeddingGemma encoder
+
+`semantic_embed` implements Rbebelm's EmbeddingGemma-300M forward pass for the
+`gemma-embedding` GGUF profile with Q8_0/F32 weights: 24 bidirectional layers,
+768 hidden values, three 256-wide query heads and one KV head, GeGLU, and RMS
+norms using the stored gains. Five symmetric local-attention layers (radius
+256, up to 513 keys) alternate with one global layer. Local/global RoPE bases
+are 10,000/1,000,000. Pooling averages all retained tokens, including BOS/EOS;
+two linear heads project 768 → 3,072 → 768, without an intervening activation.
+
+```sql
+SELECT semantic_embed('/root/bebelm/embeddinggemma-300M-Q8_0.gguf',
+                      'BRCA1 c.5266dup variant interpretation',
+                      'retrieval_query', 256, true);
+```
+
+Task names and prefixes match Rbebelm exactly:
+
+| Task | Input prefix |
+|---|---|
+| `retrieval_query` | `task: search result \| query: ` |
+| `retrieval_document` | `title: none \| text: ` |
+| `question_answering` | `task: question answering \| query: ` |
+| `fact_verification` | `task: fact checking \| query: ` |
+| `classification` | `task: classification \| query: ` |
+| `clustering` | `task: clustering \| query: ` |
+| `semantic_similarity` | `task: sentence similarity \| query: ` |
+| `code_retrieval` | `task: code retrieval \| query: ` |
+| `summarization` | `task: summarization \| query: ` |
+| `raw` | empty; input is already formatted |
+
+Formatting precedes tokenization. Inputs beyond 2,048 tokens are truncated,
+with EOS retained as the last token. Dimensions must be 768, 512, 256 or 128:
+select the leading dimensions, then optionally L2-normalize that subvector.
+Empty text is valid; NULL arguments yield NULL. Unknown tasks, dimensions,
+architectures, tensor shapes and tensor types raise errors. The formatted input
+limit is 16 MiB. Custom document titles can be formatted explicitly with `raw`.
+
+Weights stay in the read-only GGUF mapping; only the small norm vectors are
+cached as floats. Model handles and their tokenizers are immutable process-cache
+entries keyed by supplied path, size and nanosecond mtime, protected by a mutex.
+Old identities remain valid until process teardown; many identities retain
+vocabulary memory and mappings. Files must remain unchanged while mapped.
+Encoding uses per-call scratch without the cache lock, with at most 2,048
+packed tokens. Attention and positions are isolated per sequence. Consecutive
+identical token sequences share the full projection across dimension/normalization
+requests within a chunk. Encoder scratch is approximately 56 MiB, plus a 6 MiB
+projection buffer and DuckDB output lists.
+
+`quant_bebelm_matmul` and `quant_bebelm_dot` are additive Rbebelm-convention
+kernels in `src/quant.[ch]`; GGML-convention kernels are unchanged. Q8_0 and F32
+projections use floating products, without quantizing activations. Dots use four
+8-lane accumulators and an explicit fused multiply-add, with fixed reduction
+order. AVX2/FMA dispatch accelerates that arithmetic; the portable path uses
+`fmaf`. Other operations compile with `-ffp-contract=off`, without fast-math.
+Matrix work is tiled over 32 tokens. The encoder is single-threaded.
+
+```sh
+Rscript scripts/audit_embeddinggemma.R build/ducksemantics.duckdb_extension
+OPENBLAS_NUM_THREADS=1 taskset -c 10 Rscript scripts/audit_embeddinggemma.R --benchmark
+```
+
+The oracle uses 200 texts: ASCII, Unicode, ClinVar-style variant names, synthetic
+PubMed-style abstracts, and two inputs requiring truncation. It compares every
+task and dimension, with and without normalization, against installed Rbebelm;
+query/document convenience wrappers are also checked. It requires cosine
+≥ 0.99999, maximum absolute error ≤ 1e-4 for every vector, and identical ordered
+top-10 cosine neighbours over the corpus (excluding self, ties by corpus id).
+Rbebelm manages its own packed reference batches. Metrics, corpus, worst-error
+locations and runtime information are written under `build/embeddinggemma-audit`.
+`RBEBELM_AUDIT_TASKS` and `RBEBELM_AUDIT_DIMENSIONS` select comma-separated tasks
+and dimensions for independent oracle shards. `--summary` requires the complete
+10-task × 4-dimension × 2-normalization grid before aggregating their metrics.
+
+Verified against **Rbebelm 0.3.6.0.1.0**, R 4.6.0 and DuckDB R 1.5.5 on AVX2/FMA:
+
+| Comparison | Count | Observed worst |
+|---|---:|---:|
+| Primary vectors | 16,000 vectors / 6,656,000 values | absolute error **0**, relative error **0**, minimum cosine **1** |
+| Query/document wrappers | 3,200 vectors / 1,331,200 values | absolute error **0** |
+| Ordered top-10 cosine neighbours | 16,000 rankings / 160,000 positions | **0 mismatches** |
+
+All 200 texts were checked for every task, dimension and normalization setting;
+the two long inputs truncated in every setting. Detailed tables are
+`build/embeddinggemma-audit/metrics-all.tsv` and `wrappers-all.tsv`. Model MD5:
+`29ebd01c9362065f36405ef185c7755d`; audited and rebuilt extension MD5:
+`3363724715a7da6587b1dc49d9534634`. `make test`, `make sanitize` and `make fuzz`
+pass; the fuzz gate covers 40,000 mutations over two seeds.
+
+Warm-cache forward throughput on one pinned Intel Core i5-13500 P-core (logical
+CPU 10), GCC `-O3`, AVX2/FMA, DuckDB R 1.5.5 / R 4.6.0, excluding model loading:
+198 nontruncated retrieval queries, 8,639 tokens including prompts and BOS/EOS.
+Median of three runs: **80.129 s, 107.81365 tokens/s, 2.47102 texts/s**. Median
+CPU time was 80.125 s (107.81903 tokens/CPU-second). Other oracle processes ran
+on different physical cores; this is the observed throughput under that load.
+Samples and runtime details are in `build/embeddinggemma-audit/benchmark`.
+
+The forward oracle targets AVX2/FMA on this host. Non-AVX2 end-to-end parity
+and performance require separate testing; scalar fused-dot arithmetic is
+checked against the dispatched kernel by the native test.
 
 ## Build and test
 
@@ -333,8 +435,8 @@ Next phases, each validated before the next starts:
    across chunk boundaries, keyed by a hash of the rendered byte prefix as in
    ds4's KV store. Several questions on one document are evaluated inside one
    call in cost order, so an AI filter short-circuits on cached state.
-4. **Encoders and embeddings.** A Laya-style encoder with a decision head,
-   plus EmbeddingGemma and ColBERT token encoders behind the same receipts.
+4. **Encoder-backed decisions.** A Laya-style encoder with a decision head,
+   ColBERT token embeddings, and shared receipts for encoder results.
 
 Model weights are never bundled; the caller supplies a path and the receipt
 records its digest.

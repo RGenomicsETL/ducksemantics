@@ -11,6 +11,66 @@
 #include <stdio.h>
 #include <string.h>
 
+#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#include <immintrin.h>
+
+__attribute__((target("avx2,fma")))
+static float bebelm_dot_fma(const float *a, const float *b, size_t n) {
+    __m256 a0 = _mm256_setzero_ps(), a1 = a0, a2 = a0, a3 = a0;
+    size_t i = 0;
+    for (; i + 32 <= n; i += 32) {
+        a0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i), a0);
+        a1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + i + 8), _mm256_loadu_ps(b + i + 8), a1);
+        a2 = _mm256_fmadd_ps(_mm256_loadu_ps(a + i + 16), _mm256_loadu_ps(b + i + 16), a2);
+        a3 = _mm256_fmadd_ps(_mm256_loadu_ps(a + i + 24), _mm256_loadu_ps(b + i + 24), a3);
+    }
+    for (; i + 8 <= n; i += 8)
+        a0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i), a0);
+    float lanes[8];
+    _mm256_storeu_ps(lanes, _mm256_add_ps(_mm256_add_ps(a0, a1), _mm256_add_ps(a2, a3)));
+    float sum = ((lanes[0] + lanes[4]) + (lanes[2] + lanes[6])) +
+                ((lanes[1] + lanes[5]) + (lanes[3] + lanes[7]));
+    for (; i < n; i++) sum += a[i] * b[i];
+    return sum;
+}
+#endif
+
+float quant_bebelm_dot(const float *a, const float *b, size_t n) {
+#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+    if (__builtin_cpu_supports("avx2") && __builtin_cpu_supports("fma"))
+        return bebelm_dot_fma(a, b, n);
+#endif
+    float acc[4][8] = {{0}}, lanes[8];
+    size_t i = 0;
+    for (; i + 32 <= n; i += 32)
+        for (unsigned j = 0; j < 4; j++)
+            for (unsigned k = 0; k < 8; k++)
+                acc[j][k] = fmaf(a[i + j * 8 + k], b[i + j * 8 + k], acc[j][k]);
+    for (; i + 8 <= n; i += 8)
+        for (unsigned k = 0; k < 8; k++) acc[0][k] = fmaf(a[i + k], b[i + k], acc[0][k]);
+    for (unsigned k = 0; k < 8; k++)
+        lanes[k] = (acc[0][k] + acc[1][k]) + (acc[2][k] + acc[3][k]);
+    float sum = ((lanes[0] + lanes[4]) + (lanes[2] + lanes[6])) +
+                ((lanes[1] + lanes[5]) + (lanes[3] + lanes[7]));
+    for (; i < n; i++) sum += a[i] * b[i];
+    return sum;
+}
+
+void quant_bebelm_matmul(const quant_view *v, const float *x, size_t tokens,
+                         float *y, float *row_scratch) {
+    char error[GGUF_ERROR_SIZE];
+    for (size_t first = 0; first < tokens; first += 32) {
+        size_t end = tokens - first < 32 ? tokens : first + 32;
+        for (size_t r = 0; r < v->rows; r++) {
+            quant_dequantize_row(v->type, v->data + r * v->row_stride,
+                                v->row_stride, row_scratch, v->columns, error);
+            for (size_t t = first; t < end; t++)
+                y[t * v->rows + r] = quant_bebelm_dot(row_scratch,
+                                                    x + t * v->columns, v->columns);
+        }
+    }
+}
+
 static bool fail(char *error, const char *message) {
     snprintf(error, GGUF_ERROR_SIZE, "%s", message);
     return false;

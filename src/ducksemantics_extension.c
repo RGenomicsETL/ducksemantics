@@ -513,6 +513,7 @@ static bool register_maxsim(duckdb_connection connection) {
 /* ------------------------------------------------------------------------ */
 
 duckdb_state semantic_register_tokenizers(duckdb_connection connection);
+duckdb_state semantic_register_embeddinggemma(duckdb_connection connection);
 
 DUCKDB_EXTENSION_ENTRYPOINT(duckdb_connection connection, duckdb_extension_info info,
                             struct duckdb_extension_access *access) {
@@ -533,6 +534,10 @@ DUCKDB_EXTENSION_ENTRYPOINT(duckdb_connection connection, duckdb_extension_info 
     }
     if (semantic_register_tokenizers(connection) != DuckDBSuccess) {
         access->set_error(info, "failed to register tokenizer functions");
+        return false;
+    }
+    if (semantic_register_embeddinggemma(connection) != DuckDBSuccess) {
+        access->set_error(info, "failed to register semantic_embed()");
         return false;
     }
     return true;

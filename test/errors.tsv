@@ -50,3 +50,15 @@ SELECT semantic_tokenize('build/fixtures/' || chr(0) || 'tokenizer_lfm.gguf','x'
 SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[NULL]::INTEGER[]);	NULL token id
 SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[-1]);	token id outside vocabulary
 SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[267]);	token id outside vocabulary
+SELECT semantic_embed('missing','x','query',768,true);	unknown EmbeddingGemma task
+SELECT semantic_embed('missing','x','raw' || chr(0),768,true);	unknown EmbeddingGemma task
+SELECT semantic_embed('missing','x','raw',0,true);	unsupported embedding dimension
+SELECT semantic_embed('missing','x','raw',769,true);	unsupported embedding dimension
+SELECT semantic_embed('missing','x','raw',-1,true);	unsupported embedding dimension
+SELECT semantic_embed('build/fixtures/absent.gguf','x','raw',768,true);	cannot stat EmbeddingGemma model
+SELECT semantic_embed('build/fixtures','x','raw',768,true);	not a regular file
+SELECT semantic_embed('build/fixtures/valid.gguf','x','raw',768,true);	general.architecture=gemma-embedding
+SELECT semantic_embed('build/fixtures/gemma_shape.gguf','x','raw',768,true);	tensor token_embd.weight
+SELECT semantic_embed('build/fixtures/gemma_type.gguf','x','raw',768,true);	tensor token_embd.weight
+SELECT semantic_embed('build/fixtures/gemma_missing.gguf','x','raw',768,true);	tensor token_embd.weight
+SELECT semantic_embed('bad' || chr(0), 'x','raw',768,true);	path contains NUL
