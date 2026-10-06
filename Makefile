@@ -15,12 +15,12 @@ CFLAGS       += -std=c11 -fPIC -fvisibility=hidden -ffp-contract=off \
 CPPFLAGS     += -D_POSIX_C_SOURCE=200809L -Iduckdb_capi -DDUCKDB_EXTENSION_NAME=$(EXTENSION) \
                 -DDUCKDB_EXTENSION_API_VERSION_MAJOR=1 -DDUCKDB_EXTENSION_API_VERSION_MINOR=2 \
                 -DDUCKDB_EXTENSION_API_VERSION_PATCH=0
-LDLIBS       += -lm
-SANITIZE      = -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined
+LDLIBS       += -lm -lpthread
+SANITIZE      = -O1 -g -ffp-contract=off -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined
 
 SOURCES = src/ducksemantics_extension.c src/gguf.c src/quant.c src/quant_sql.c \
-          src/tokenizer.c src/tokenizer_sql.c
-HEADERS = src/gguf.h src/quant.h src/tokenizer.h src/tokenizer_unicode.h \
+          src/tokenizer.c src/tokenizer_sql.c src/embeddinggemma.c src/embeddinggemma_sql.c
+HEADERS = src/gguf.h src/quant.h src/tokenizer.h src/tokenizer_unicode.h src/embeddinggemma.h \
           duckdb_capi/duckdb_extension.h duckdb_capi/duckdb.h
 LIBRARY = build/lib$(EXTENSION).so
 ARTIFACT = build/$(EXTENSION).duckdb_extension
@@ -54,11 +54,20 @@ build/tokenizer_test: test/tokenizer_test.c src/tokenizer.c src/tokenizer.h src/
 	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/tokenizer_test.c src/tokenizer.c src/gguf.c $(LDLIBS)
 
-fixtures: build/make_fixtures build/make_quant_fixtures build/make_tokenizer_fixtures build/tokenizer_test
+build/make_embeddinggemma_fixtures: test/make_embeddinggemma_fixtures.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -o $@ $<
+
+build/embeddinggemma_test: test/embeddinggemma_test.c src/embeddinggemma.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
+	@mkdir -p build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Isrc -o $@ test/embeddinggemma_test.c src/embeddinggemma.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS)
+
+fixtures: build/make_fixtures build/make_quant_fixtures build/make_tokenizer_fixtures build/tokenizer_test build/make_embeddinggemma_fixtures
 	@mkdir -p build/fixtures
 	build/make_fixtures build/fixtures
 	build/make_quant_fixtures build/fixtures
 	build/make_tokenizer_fixtures build/fixtures
+	build/make_embeddinggemma_fixtures build/fixtures
 
 build/test_quant: test/quant.c src/quant.c src/gguf.c src/quant.h src/gguf.h Makefile
 	@mkdir -p build
@@ -68,8 +77,9 @@ build/bench_quant: scripts/bench_quant.c src/quant.c src/gguf.c src/quant.h src/
 	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ scripts/bench_quant.c src/quant.c src/gguf.c $(LDLIBS)
 
-test: $(ARTIFACT) fixtures build/test_quant
+test: $(ARTIFACT) fixtures build/test_quant build/embeddinggemma_test
 	build/test_quant
+	build/embeddinggemma_test
 	DUCKDB=$(DUCKDB) sh test/run.sh $(ARTIFACT)
 
 # The same suite against an ASan/UBSan build, run inside the DuckDB CLI.
@@ -86,7 +96,12 @@ build/asan/tokenizer_test: test/tokenizer_test.c src/tokenizer.c src/tokenizer.h
 	@mkdir -p build/asan
 	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -o $@ test/tokenizer_test.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
 
-sanitize: $(ASAN_ARTIFACT) build/asan/tokenizer_test fixtures
+build/asan/embeddinggemma_test: test/embeddinggemma_test.c src/embeddinggemma.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
+	@mkdir -p build/asan
+	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -Isrc -o $@ test/embeddinggemma_test.c src/embeddinggemma.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS)
+
+sanitize: $(ASAN_ARTIFACT) build/asan/tokenizer_test build/asan/embeddinggemma_test fixtures
+	build/asan/embeddinggemma_test
 	TOKENIZER_TEST=build/asan/tokenizer_test DUCKDB=build/asan/duckdb sh test/run.sh $(ASAN_ARTIFACT)
 
 build/asan/fuzz_gguf: test/fuzz_gguf.c src/gguf.c src/gguf.h

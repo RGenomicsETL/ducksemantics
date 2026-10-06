@@ -64,4 +64,12 @@ bool quant_matvec(const quant_view *v, const float *x, uint64_t n,
                    uint64_t first, uint64_t count, float *y, uint64_t y_count,
                    void *scratch, uint64_t scratch_bytes, char *error);
 
+/* Rbebelm floating projection path: dequantize one row into explicit scratch,
+ * then dot all token-major input rows. F32 and Q8_0 only; no activation quantizer.
+ * The caller validates views and dimensions once at model load.
+ */
+float quant_bebelm_dot(const float *a, const float *b, size_t n);
+void quant_bebelm_matmul(const quant_view *v, const float *x, size_t tokens,
+                         float *y, float *row_scratch);
+
 #endif

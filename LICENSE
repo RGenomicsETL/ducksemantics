@@ -24,3 +24,4 @@ duckdb_capi/ contains DuckDB's C extension API headers, MIT licensed by the
 DuckDB Foundation; see duckdb_capi/LICENSE.
 
 src/quant.c includes GGML and FP16 formulas; see src/quant.LICENSE.
+Rbebelm/bebelm dot accumulation semantics are covered by src/bebelm.LICENSE.
