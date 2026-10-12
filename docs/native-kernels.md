@@ -379,6 +379,23 @@ The forward oracle targets AVX2/FMA on this host. Non-AVX2 end-to-end parity
 and performance require separate testing; scalar fused-dot arithmetic is
 checked against the dispatched kernel by the native test.
 
+## Generation prefill and telemetry
+
+The native LFM2-MoE generation path prefills prompt tokens sequentially in
+`lfm2_prefill()`. Token-batched prefill is not part of this C implementation.
+Rbebelm's Rust backend has batched layer execution and scalar-versus-batched
+cache/logit tests; numerical compatibility does not establish equivalent
+prefill performance.
+
+The C `lfm2_generation` result retains `prompt_tokens`, generated-id `count`,
+`prefill_seconds`, and `decode_seconds`. `semantic_generate()` returns the
+text only, so these fields are not exposed as a SQL statistics relation.
+Prefill time includes the initial vocabulary projection. Decode time covers
+selection and decode-forward work, not detokenization. At a token-budget stop,
+the last emitted token is pending rather than already processed by the decode
+state; terminal-token stops have different counts. Throughput measurements
+must distinguish emitted tokens from decoded forward passes.
+
 ## Build and test
 
 ```sh

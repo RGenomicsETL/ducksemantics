@@ -32,12 +32,31 @@ jobs:
           cd build/r
           R CMD check --no-manual --no-build-vignettes ducksemantics_*.tar.gz
           grep -q '^Status: OK' ducksemantics.Rcheck/00check.log
-      - name: Execute the README
-        run: R_LIBS=build/r/library Rscript scripts/render-readme.R
+      - name: Cache the reference model for executed documentation
+        uses: actions/cache@v4
+        with:
+          path: build/models
+          key: embeddinggemma-q8-b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63
+      - name: Stage the pinned documentation model
+        # Caller-supplied test weights are governed by the Gemma Terms of Use;
+        # they are not part of the R package or extension artifact.
+        run: |
+          mkdir -p build/models
+          model=build/models/embeddinggemma-300M-Q8_0.gguf
+          if [ ! -f "$model" ]; then
+            curl -fL --retry 3 https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF/resolve/0f741b5a6585bd53aeb15cd1372c56f2a0f65e12/embeddinggemma-300M-Q8_0.gguf -o "$model"
+          fi
+          echo 'b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63  build/models/embeddinggemma-300M-Q8_0.gguf' | sha256sum -c -
+      - name: Execute the README and build the static site
+        env:
+          R_LIBS: build/r/library
+          DUCKSEMANTICS_EMBED_MODEL: build/models/embeddinggemma-300M-Q8_0.gguf
+        run: Rscript scripts/render-readme.R
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: r-package-check
           path: |
             build/r/ducksemantics.Rcheck
+            build/site
             README.md

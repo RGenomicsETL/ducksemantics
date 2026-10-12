@@ -19,9 +19,7 @@ SHLIB_LDFLAGS ?= -shared
 LDLIBS       += -lm -lpthread
 SANITIZE      = -O1 -g -ffp-contract=off -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined
 
-SOURCES = src/ducksemantics_extension.c src/gguf.c src/quant.c src/quant_sql.c \
-          src/tokenizer.c src/tokenizer_sql.c src/embeddinggemma.c src/embeddinggemma_sql.c \
-          src/lfm2.c src/lfm2_sql.c
+SOURCES = $(shell tr '\n' ' ' < src/sources.list)
 HEADERS = src/gguf.h src/quant.h src/tokenizer.h src/tokenizer_unicode.h src/embeddinggemma.h \
           src/lfm2.h \
           duckdb_capi/duckdb_extension.h duckdb_capi/duckdb.h
@@ -31,10 +29,12 @@ ASAN_ARTIFACT = build/asan/$(EXTENSION).duckdb_extension
 # Real model files for `make audit` (Rscript with duckdb and Rgguf installed).
 GGUF_FILES ?= $(wildcard /root/bebelm/*.gguf)
 
-.PHONY: all test fixtures sanitize fuzz audit quant-oracle clean
+TEST_EXTENSION ?= $(ARTIFACT)
+
+.PHONY: all test native-tests fixtures sanitize fuzz audit quant-oracle clean
 all: $(ARTIFACT)
 
-$(LIBRARY): $(SOURCES) $(HEADERS) Makefile
+$(LIBRARY): $(SOURCES) $(HEADERS) src/sources.list Makefile
 	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SHLIB_LDFLAGS) $(LDFLAGS) -o $@ $(SOURCES) $(LDLIBS)
 
@@ -90,11 +90,14 @@ build/asan/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c sr
 	@mkdir -p build/asan
 	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -ffp-contract=off -o $@ test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
 
-test: $(ARTIFACT) fixtures build/test_quant build/embeddinggemma_test build/lfm2_test
+test: $(ARTIFACT)
+	$(MAKE) native-tests
+
+native-tests: fixtures build/test_quant build/embeddinggemma_test build/lfm2_test
 	build/test_quant
 	build/embeddinggemma_test
 	build/lfm2_test
-	DUCKDB=$(DUCKDB) sh test/run.sh $(ARTIFACT)
+	DUCKDB='$(DUCKDB)' sh test/run.sh $(TEST_EXTENSION)
 
 # The same suite against an ASan/UBSan build, run inside the DuckDB CLI.
 $(ASAN_ARTIFACT): $(SOURCES) $(HEADERS) Makefile
@@ -154,7 +157,7 @@ R_PACKAGE = r/ducksemantics
 R_BUILD = build/r
 R_LIB = $(abspath $(R_BUILD)/library)
 
-.PHONY: r-bootstrap r-sync-check r-build r-install r-test r-check readme
+.PHONY: r-bootstrap r-sync-check r-build r-install r-test r-check readme site
 r-bootstrap:
 	Rscript $(R_PACKAGE)/tools/bootstrap.R
 
@@ -178,6 +181,50 @@ r-check: r-build
 
 readme: r-install
 	R_LIBS=$(R_LIB) Rscript scripts/render-readme.R
+
+# The helper owns distribution packaging, not the self-contained R build.
+# Includes are absent in the R source bundle; `make all` needs only C and sh.
+EXTENSION_NAME := $(EXTENSION)
+EXTENSION_CANONICAL := $(EXTENSION)
+EXTENSION_LIB_FILENAME := lib$(EXTENSION).so
+EXTENSION_VERSION := $(VERSION)
+TARGET_DUCKDB_VERSION := $(ABI_VERSION)
+DUCKDB_TEST_VERSION := 1.5.5
+PROJ_DIR := $(CURDIR)
+CI_TOOLS_MAKEFILES := extension-ci-tools/makefiles/c_api_extensions
+
+ifneq ($(wildcard $(CI_TOOLS_MAKEFILES)/base.Makefile),)
+# The project tests its real CLI artifact, so upstream wheel-based skips do not
+# apply. These overrides replace SQLLogicTest with the existing C/CLI suite.
+override SKIP_TESTS := 0
+include $(CI_TOOLS_MAKEFILES)/base.Makefile
+include $(CI_TOOLS_MAKEFILES)/c_cpp.Makefile
+override TEST_RUNNER_RELEASE = $(MAKE) native-tests DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/release/$(EXTENSION).duckdb_extension
+override TEST_RUNNER_DEBUG = $(MAKE) native-tests DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/debug/$(EXTENSION).duckdb_extension
+
+.PHONY: configure configure_cli distribution-directory release debug test_release test_debug
+distribution-directory:
+	@mkdir -p configure
+platform configure/extension_version.txt: | distribution-directory
+configure: venv platform extension_version configure_cli
+configure_cli: | distribution-directory
+	sh scripts/install-duckdb-cli.sh $(if $(DUCKDB_PLATFORM),$(DUCKDB_PLATFORM),$(PLATFORM))
+# The reusable Linux workflow uses a nop configure inside its container.
+# The CLI remains a required, digest-verified host for the native test runner.
+configure_ci: configure_cli
+release: build_extension_with_metadata_release
+debug: build_extension_with_metadata_debug
+test_extension_release_internal: build_extension_with_metadata_release configure_cli
+test_extension_debug_internal: build_extension_with_metadata_debug configure_cli
+test_release: test_extension_release
+test_debug: test_extension_debug
+else
+configure release debug test_release test_debug:
+	@echo 'Run git submodule update --init extension-ci-tools for distribution targets.' >&2
+	@exit 1
+endif
+
+site: readme
 
 clean:
 	rm -rf build

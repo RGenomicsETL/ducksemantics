@@ -1,6 +1,8 @@
 build/
 .pi/
 *.tmp
+/configure/
+/cmake_build/
 /r/ducksemantics/inst/duckdb/
 /README.html
 /README_files/

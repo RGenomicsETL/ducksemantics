@@ -1,0 +1,10 @@
+src/ducksemantics_extension.c
+src/gguf.c
+src/quant.c
+src/quant_sql.c
+src/tokenizer.c
+src/tokenizer_sql.c
+src/embeddinggemma.c
+src/embeddinggemma_sql.c
+src/lfm2.c
+src/lfm2_sql.c

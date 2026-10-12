@@ -1,0 +1,108 @@
+/* Static site for DuckSemantics; built by docs/build-site.R. */
+:root {
+  --ink: #1d232b;
+  --muted: #5b6573;
+  --rule: #dfe3e8;
+  --panel: #f6f8fa;
+  --accent: #b5651d;
+  --link: #1f5f99;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0 auto;
+  max-width: 50rem;
+  padding: 0 1.25rem 4rem;
+  color: var(--ink);
+  background: #fff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  line-height: 1.6;
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin: 0 -1.25rem 2rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 3px solid var(--accent);
+}
+.site-name { font-weight: 700; font-size: 1.15rem; color: var(--ink); }
+.site-header nav { display: flex; flex-wrap: wrap; gap: 1.1rem; }
+.site-header nav a { color: var(--muted); font-size: 0.95rem; }
+.site-header nav a:hover { color: var(--link); }
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 { line-height: 1.25; letter-spacing: -0.01em; }
+h1 { font-size: 2.1rem; margin: 0.5rem 0 1rem; }
+h2 {
+  font-size: 1.4rem;
+  margin-top: 2.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
+}
+h3 { font-size: 1.12rem; margin-top: 2rem; }
+
+#TOC {
+  margin: 0 0 2rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  font-size: 0.92rem;
+}
+#TOC ul { margin: 0.25rem 0; padding-left: 1.1rem; }
+#TOC > ul { padding-left: 0; list-style: none; }
+#TOC li { margin: 0.15rem 0; }
+
+code { font-family: var(--mono); font-size: 0.88em; }
+:not(pre) > code {
+  padding: 0.1em 0.3em;
+  background: var(--panel);
+  border-radius: 3px;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 0.8rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+div.sourceCode { margin: 1rem 0; background: none; }
+div.sourceCode pre { margin: 0; }
+
+table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.88rem;
+  display: block;
+  overflow-x: auto;
+}
+th, td { padding: 0.35rem 0.7rem; border: 1px solid var(--rule); text-align: left; }
+th { background: var(--panel); font-weight: 600; }
+
+/* Query results from executed SQL chunks. */
+.knitsql-table table { font-family: var(--mono); font-size: 0.8rem; }
+.knitsql-table { margin-top: -0.25rem; }
+
+blockquote {
+  margin: 1rem 0;
+  padding: 0.25rem 1rem;
+  color: var(--muted);
+  border-left: 3px solid var(--rule);
+}
+
+@media (max-width: 40rem) {
+  html { font-size: 16px; }
+  h1 { font-size: 1.7rem; }
+}
