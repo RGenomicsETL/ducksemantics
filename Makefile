@@ -10,11 +10,12 @@ PLATFORM     ?= $(shell $(DUCKDB) -noheader -list -c 'PRAGMA platform' 2>/dev/nu
 CC           ?= cc
 # -ffp-contract=off keeps float reductions bit-identical across ISAs.
 CFLAGS       ?= -O3
-CFLAGS       += -std=c11 -fPIC -fvisibility=hidden -ffp-contract=off \
+override CFLAGS += -std=c11 -fPIC -fvisibility=hidden -ffp-contract=off \
                 -Wall -Wextra -Wpedantic -Wshadow -Wno-unused-parameter
-CPPFLAGS     += -D_POSIX_C_SOURCE=200809L -Iduckdb_capi -DDUCKDB_EXTENSION_NAME=$(EXTENSION) \
+override CPPFLAGS += -D_POSIX_C_SOURCE=200809L -Iduckdb_capi -DDUCKDB_EXTENSION_NAME=$(EXTENSION) \
                 -DDUCKDB_EXTENSION_API_VERSION_MAJOR=1 -DDUCKDB_EXTENSION_API_VERSION_MINOR=2 \
                 -DDUCKDB_EXTENSION_API_VERSION_PATCH=0
+SHLIB_LDFLAGS ?= -shared
 LDLIBS       += -lm -lpthread
 SANITIZE      = -O1 -g -ffp-contract=off -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined
 
@@ -35,7 +36,7 @@ all: $(ARTIFACT)
 
 $(LIBRARY): $(SOURCES) $(HEADERS) Makefile
 	@mkdir -p build
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ $(SOURCES) $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SHLIB_LDFLAGS) $(LDFLAGS) -o $@ $(SOURCES) $(LDLIBS)
 
 $(ARTIFACT): $(LIBRARY) scripts/append_metadata.sh description.yml
 	sh scripts/append_metadata.sh $< $@ $(PLATFORM) $(ABI_VERSION) $(VERSION)
@@ -146,6 +147,37 @@ build/oracle/test_ggml: $(ORACLE_SOURCES) src/quant.h src/gguf.h Makefile
 
 quant-oracle: build/oracle/ggml.so build/oracle/test_ggml
 	build/oracle/test_ggml
+
+# The source package is self-contained after bootstrap; installation never
+# reaches into the repository or downloads a model.
+R_PACKAGE = r/ducksemantics
+R_BUILD = build/r
+R_LIB = $(abspath $(R_BUILD)/library)
+
+.PHONY: r-bootstrap r-sync-check r-build r-install r-test r-check readme
+r-bootstrap:
+	Rscript $(R_PACKAGE)/tools/bootstrap.R
+
+r-sync-check:
+	Rscript $(R_PACKAGE)/tools/bootstrap.R --check
+
+r-build: r-bootstrap
+	@mkdir -p $(R_BUILD)
+	rm -f $(R_BUILD)/ducksemantics_*.tar.gz
+	cd $(R_BUILD) && R CMD build ../../$(R_PACKAGE)
+
+r-install: r-build
+	@mkdir -p $(R_LIB)
+	R CMD INSTALL --library=$(R_LIB) $(R_BUILD)/ducksemantics_*.tar.gz
+
+r-test: r-install
+	R_LIBS=$(R_LIB) Rscript -e 'tinytest::test_package("ducksemantics")'
+
+r-check: r-build
+	cd $(R_BUILD) && R CMD check --no-manual --no-build-vignettes ducksemantics_*.tar.gz
+
+readme: r-install
+	R_LIBS=$(R_LIB) Rscript scripts/render-readme.R
 
 clean:
 	rm -rf build

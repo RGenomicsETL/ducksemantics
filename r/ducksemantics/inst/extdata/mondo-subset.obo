@@ -1,0 +1,123 @@
+format-version: 1.2
+data-version: releases/2026-10-06
+ontology: mondo
+
+[Term]
+id: MONDO:0007947
+name: Marfan syndrome
+def: "A disorder of the connective tissue. Connective tissue provides strength and flexibility to structures throughout the body such as bones, ligaments, muscles, walls of blood vessels, and heart valves. Marfan syndrome affects most organs and tissues, especially the skeleton, lungs, eyes, heart, and the large blood vessel that distributes blood from the heart to the rest of the body (the aorta). It is caused by mutations in the FBN1 gene, which provides instructions for making a protein called fibrillin-1. Marfan syndrome is inherited in an autosomal dominant pattern. At least 25% of cases are due to a new (de novo) mutation. Treatment is based on the signs and symptoms in each person." [https://rarediseases.info.nih.gov/diseases/6975/marfan-syndrome]
+subset: clingen {source="MONDO:CLINGEN"}
+subset: doid_rare {source="DOID:14323"}
+subset: gard_rare {source="GARD:0016535", source="MONDO:GARD"}
+subset: nord_rare {source="MONDO:NORD", source="NORD:1403"}
+subset: ordo_disorder {source="Orphanet:558"}
+subset: ordo_subtype_of_a_disorder {source="Orphanet:284963"}
+subset: orphanet_rare {source="Orphanet:558"}
+subset: otar {source="MONDO:OTAR"}
+subset: prototype_pattern {source="https://github.com/monarch-initiative/monarch-disease-ontology/issues/101"}
+subset: rare
+synonym: "Marfan syndrome" EXACT [DOID:14323, ICD10CM:Q87.4, icd11.foundation:236564145, NCIT:C34807, OMIM:154700, Orphanet:558] {OMO:0002001="https://w3id.org/information-resource-registry/clingen"}
+synonym: "Marfan syndrome type 1" EXACT [Orphanet:284963]
+synonym: "Marfan syndrome, type 1" EXACT [OMIM:154700]
+synonym: "Marfan's syndrome" EXACT [DOID:14323, NCIT:C34807]
+synonym: "MFS" EXACT ABBREVIATION [OMIM:154700, Orphanet:558]
+synonym: "MFS1" EXACT ABBREVIATION [OMIM:154700, Orphanet:284963]
+xref: DOID:14323 {source="MONDO:equivalentTo"}
+xref: GARD:0016535 {source="MONDO:GARD"}
+xref: ICD10CM:Q87.4 {source="https://orcid.org/0009-0001-6494-4831", source="Orphanet:558", source="MONDO:equivalentTo", source="https://orcid.org/0000-0002-5002-8648", source="Orphanet:558/specific", source="Orphanet:284963", source="Orphanet:558/e", source="https://orcid.org/0000-0002-1780-5230", source="DOID:14323", source="https://orcid.org/0000-0002-2842-8645"}
+xref: icd11.foundation:236564145 {source="Orphanet:558", source="MONDO:equivalentTo"}
+xref: ICD9:759.82 {source="MONDO:equivalentTo", source="MONDO:i2s", source="DOID:14323"}
+xref: MedDRA:10026829 {source="Orphanet:558", source="Orphanet:558/e"}
+xref: MEDGEN:44287 {source="MONDO:equivalentTo", source="MONDO:MEDGEN"}
+xref: MESH:D008382 {source="Orphanet:558", source="MONDO:equivalentTo", source="Orphanet:558/e", source="DOID:14323"}
+xref: NANDO:1200644 {source="MONDO:NANDO", source="https://orcid.org/0000-0003-0011-764X", source="https://orcid.org/0000-0002-0170-9172"}
+xref: NANDO:2200968 {source="MONDO:NANDO", source="https://orcid.org/0000-0003-0011-764X", source="https://orcid.org/0000-0002-0170-9172"}
+xref: NCIT:C34807 {source="MONDO:equivalentTo", source="DOID:14323"}
+xref: NORD:1403 {source="MONDO:NORD"}
+xref: OMIM:154700 {source="Orphanet:558/btnt", source="Orphanet:284963/e", source="Orphanet:558", source="MONDO:equivalentTo", source="Orphanet:284963", source="DOID:14323"}
+xref: Orphanet:284963 {source="MONDO:equivalentTo", source="OMIM:154700"}
+xref: Orphanet:558 {source="MONDO:equivalentTo", source="OMIM:154700"}
+xref: SCTID:19346006 {source="MONDO:equivalentTo", source="DOID:14323"}
+xref: UMLS:C0024796 {source="MONDO:equivalentTo", source="MONDO:MEDGEN", source="MEDGEN:44287"}
+is_a: MONDO:0000426 {source="DOID:14323", source="MONDO:Redundant"} ! autosomal dominant disease
+is_a: MONDO:0002254 {source="MONDO:Redundant", source="NCIT:C34807"} ! syndromic disease
+is_a: MONDO:0005172 {source="https://orcid.org/0000-0002-4142-7153"} ! skeletal system disorder
+is_a: MONDO:0017310 {source="Orphanet:284963/inferred", source="Orphanet:558"} ! Marfan and Marfan-related disorder
+relationship: curated_content_resource https://search.clinicalgenome.org/kb/conditions/MONDO:0007947 {source="MONDO:CLINGEN"}
+relationship: excluded_subClassOf MONDO:0017311 {source="Orphanet:284963/inferred", source="Orphanet:558", source="https://orcid.org/0000-0001-5208-3432"} ! obsolete rare disease with thoracic aortic aneurysm and aortic dissection
+relationship: excluded_subClassOf MONDO:0019755 {source="MONDO:0015332-obsoleted", source="https://orcid.org/0000-0001-5208-3432"} ! developmental defect during embryogenesis
+relationship: excluded_subClassOf MONDO:0020208 {source="Orphanet:284963/inferred", source="Orphanet:558", source="https://orcid.org/0000-0001-5208-3432"} ! obsolete syndromic myopia
+relationship: excluded_subClassOf MONDO:0020211 {source="Orphanet:284963/inferred", source="Orphanet:558", source="https://orcid.org/0000-0001-5208-3432"} ! obsolete syndromic keratoconus
+relationship: excluded_subClassOf MONDO:0020236 {source="Orphanet:558", source="https://orcid.org/0000-0001-5208-3432"} ! obsolete lens position anomaly
+relationship: has_material_basis_in_germline_mutation_in http://identifiers.org/hgnc/3603 {source="OMIM:154700"} ! FBN1
+property_value: curated_content_resource "https://www.malacards.org/card/marfan_syndrome" xsd:anyURI {source="MONDO:MalaCards"}
+property_value: IAO:0000233 "https://github.com/monarch-initiative/mondo/issues/3155" xsd:anyURI
+property_value: IAO:0000233 "https://github.com/monarch-initiative/mondo/issues/4948" xsd:anyURI
+property_value: IAO:0000233 "https://github.com/monarch-initiative/mondo/issues/6751" xsd:anyURI
+property_value: IAO:0000233 "https://github.com/monarch-initiative/mondo/issues/9097" xsd:anyURI
+property_value: seeAlso "https://rarediseases.info.nih.gov/diseases/6975/marfan-syndrome" xsd:anyURI {source="GARD:0006975"}
+property_value: skos:closeMatch MEDDRA:10026829
+property_value: skos:exactMatch DOID:14323
+property_value: skos:exactMatch icd10cm:Q87.4
+property_value: skos:exactMatch icd11.foundation:236564145
+property_value: skos:exactMatch MEDGEN:44287
+property_value: skos:exactMatch MESH:D008382
+property_value: skos:exactMatch NCIT:C34807
+property_value: skos:exactMatch OMIM:154700
+property_value: skos:exactMatch Orphanet:284963
+property_value: skos:exactMatch Orphanet:558
+property_value: skos:exactMatch SCTID:19346006
+property_value: skos:exactMatch UMLS:C0024796
+
+[Term]
+id: MONDO:0000002
+name: obsolete 46,XX sex reversal
+is_obsolete: true
+replaced_by: MONDO:0009299
+
+[Term]
+id: MONDO:0009299
+name: 46 XX gonadal dysgenesis
+def: "46,XX gonadal dysgenesis (46,XX GD) is a primary ovarian defect leading to premature ovarian failure (POF) in otherwise normal 46,XX females as a result of failure of the gonads to develop or due to resistance to gonadotrophin stimulation." [Orphanet:243]
+subset: doid_rare {source="DOID:14450"}
+subset: gard_rare {source="GARD:0005671", source="MONDO:GARD"}
+subset: nord_rare {source="MONDO:NORD"}
+subset: ordo_disorder {source="Orphanet:243"}
+subset: ordo_malformation_syndrome {source="Orphanet:243"}
+subset: orphanet_rare {source="Orphanet:243"}
+subset: otar {source="MONDO:OTAR"}
+subset: rare
+synonym: "46,XX complete gonadal dysgenesis" EXACT [icd11.foundation:1742528605, Orphanet:243]
+synonym: "46,XX gonadal dysgenesis" EXACT [icd11.foundation:1742528605, NCIT:C120197, Orphanet:243]
+synonym: "46,XX ovarian dysgenesis" EXACT [NCIT:C120197, Orphanet:243]
+synonym: "46,XX pure gonadal dysgenesis" EXACT [icd11.foundation:1742528605, Orphanet:243]
+synonym: "follicular stimulating hormone-resistant ovaries" EXACT [icd11.foundation:1742528605]
+synonym: "FSH-RO" EXACT []
+synonym: "hypergonadotropic ovarian dysgenesis" EXACT [icd11.foundation:1742528605, Orphanet:243]
+synonym: "XX female gonadal dysgenesis" EXACT [Orphanet:243]
+synonym: "XX-GD" EXACT ABBREVIATION [Orphanet:243]
+xref: DOID:14450 {source="MONDO:equivalentTo"}
+xref: GARD:0005671 {source="MONDO:GARD"}
+xref: icd11.foundation:1742528605 {source="MONDO:equivalentTo", source="https://orcid.org/0000-0001-5208-3432", source="Orphanet:243"}
+xref: MEDGEN:146899 {source="MONDO:equivalentTo", source="MONDO:MEDGEN"}
+xref: MESH:D023961 {source="Orphanet:243/e", source="DOID:14450", source="MONDO:equivalentTo", source="Orphanet:243"}
+xref: NANDO:2200384 {source="MONDO:NANDO", source="https://orcid.org/0000-0003-0011-764X", source="https://orcid.org/0000-0002-0170-9172"}
+xref: NCIT:C120197 {source="DOID:14450", source="MONDO:equivalentTo"}
+xref: OMIMPS:233300 {source="MONDO:equivalentTo"}
+xref: Orphanet:243 {source="DOID:14450", source="MONDO:equivalentTo", source="OMIM:233300"}
+xref: SCTID:95198001 {source="MONDO:equivalentTo"}
+xref: UMLS:C0685837 {source="MONDO:equivalentTo", source="MONDO:MEDGEN", source="MEDGEN:146899"}
+is_a: MONDO:0001967 {source="DOID:14450", source="MESH:D023961", source="NCIT:C120197"} ! gonadal dysgenesis
+is_a: MONDO:0019852 {source="Orphanet:243"} ! inherited primary ovarian failure
+relationship: should_conform_to http://purl.obolibrary.org/obo/mondo/patterns/OMIM_phenotypic_series.yaml
+property_value: curated_content_resource "https://www.malacards.org/card/46_xx_gonadal_dysgenesis" xsd:anyURI {source="MONDO:MalaCards"}
+property_value: skos:exactMatch DOID:14450
+property_value: skos:exactMatch icd11.foundation:1742528605
+property_value: skos:exactMatch MEDGEN:146899
+property_value: skos:exactMatch MESH:D023961
+property_value: skos:exactMatch NCIT:C120197
+property_value: skos:exactMatch OMIMPS:233300
+property_value: skos:exactMatch Orphanet:243
+property_value: skos:exactMatch SCTID:95198001
+property_value: skos:exactMatch UMLS:C0685837
+

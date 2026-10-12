@@ -1,0 +1,15 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.git$
+^\.gitignore$
+^\.github$
+^README\.Rmd$
+^README\.html$
+^Makefile$
+^_pkgdown\.yml$
+^pkgdown$
+^docs$
+^.*\.tar\.gz$
+^.*\.Rcheck$
+^tools/bootstrap\.R$
+^inst/duckdb$

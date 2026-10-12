@@ -1,0 +1,57 @@
+# ducksemantics development
+
+- Literature retrieval skips nonmatching sections and preserves optional
+  subsection labels and source entity ordinals in matching spans.
+
+# ducksemantics 0.3.0
+
+- Bundle the CPU-only DuckDB extension using the stable C extension ABI 1.2.0.
+  Source-package installation builds from its own canonical source bundle.
+- Load native kernels through isolated DuckDB connections; retain
+  `extension = FALSE` for relation-only consumers.
+- Import release-bound Mondo terms, raw mappings, synonyms, and obsolescence,
+  retaining source tags and SHA-256 receipts.
+- Import pinned DisMech records and source-field locators without emitting
+  proposal rows or evaluating hypotheses.
+- Select source catalogs using typed provider-availability epochs and the
+  existing Monarch release-selection authority.
+- Include offline source and synthetic GGUF fixtures for tests and examples.
+
+# ducksemantics 0.2.1
+
+- Kept Monarch array-provenance tests on DuckDB's native list values rather
+  than autoloading the optional `json` extension, so offline checks remain
+  portable.
+
+# ducksemantics 0.2.0
+
+- Added `ducksemantics_monarch_project_pack()` for narrow, read-only,
+  connection-local projections of an already attached exact dated Monarch
+  annotation pack. It validates the official pack shape—including Monarch's
+  serialized text negation and node/phenotype/IC tables—and an exact typed
+  provider/release binding, preserves edge/provenance fields and arrays, and
+  exposes explicit normalized-role statuses without downloads, copies, merges,
+  ranking, or causal defaults.
+- Updated the public package origin to `RGenomicsETL/ducksemantics`.
+
+# ducksemantics 0.1.0
+
+- Sealed package ownership around ontology graphs, validated HPO observations,
+  typed release-cataloged Monarch relations, snapshot-catalog-bound literature
+  retrieval, and source-grounded semantic/provider protocols.
+- Added the final relational HPO observation contract. It validates exact,
+  non-empty zero-based half-open source spans and records context, method,
+  provider identity/version, confidence, and explicit accepted status.
+- Added caller-supplied Monarch gene-phenotype/gene-disease facts with a required
+  typed provider/release catalog. Exact and Date/order as-of queries reject
+  unknown releases; historical gene-disease holdouts are provenance-preserving
+  anti-join audits.
+- Literature retrieval now consumes RClinVarbitration's caller-owned
+  append-only source-order projection: cataloged integer cutoffs select the
+  latest article event, discard latest deletion events, and join exact
+  same-version sections before returning source spans. ducksemantics neither
+  imports nor stores literature relations.
+- Removed ducksemantics benchmark APIs (owned by VariantStoryBench), generic
+  cache APIs, and S7 wrappers for relations, connections, matrices, batches,
+  queries, indexes, and clustering specifications. Embedding and reranking now
+  use ordinary data frames, matrices, and scalar arguments.

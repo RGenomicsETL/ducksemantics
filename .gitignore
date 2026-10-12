@@ -1,3 +1,7 @@
 build/
 .pi/
 *.tmp
+/r/ducksemantics/inst/duckdb/
+/README.html
+/README_files/
+/README_cache/

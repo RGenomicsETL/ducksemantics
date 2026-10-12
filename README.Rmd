@@ -1,0 +1,307 @@
+---
+output:
+  github_document:
+    html_preview: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", error = FALSE)
+knitr::opts_chunk$set(connection = "conn", tab.cap = NA)
+```
+
+# DuckSemantics
+
+DuckSemantics brings semantic computation into DuckDB: inspect a GGUF file,
+tokenize text, run supported CPU models, and rank stored vectors with ordinary
+SQL. The accompanying **ducksemantics** R package also provides version-bound
+ontology and literature relations.
+
+The useful boundary is simple: **a retrieval score is not a clinical fact**.
+Imported sources carry provider, release, and receipt identities. Model output
+belongs in a separate proposal or judgment relation; it does not rewrite a
+source record.
+
+## Install and open a connection
+
+The R package lives in `r/ducksemantics`. It bundles the canonical C sources and
+builds the extension during installation; it does not fetch headers or weights.
+Linux and macOS require a C11 compiler and GNU make. Windows and webR require
+additional native portability work.
+
+With the R dependencies in `r/ducksemantics/DESCRIPTION` installed (including
+`duckdb` for this walkthrough), run from a repository checkout:
+
+```sh
+make r-bootstrap
+R CMD INSTALL r/ducksemantics
+```
+
+For an isolated development library, use `make r-install` and start R with
+`R_LIBS=build/r/library`. To build only the standalone extension, use `make` and
+load `build/ducksemantics.duckdb_extension` with an unsigned-enabled DuckDB CLI.
+The artifact uses DuckDB's stable C extension ABI **1.2.0**; model support is
+architecture-specific, not universal GGUF inference.
+
+```{r connect, eval=TRUE}
+library(ducksemantics)
+conn <- ducksemantics_connect()
+```
+
+`ducksemantics_connect()` creates an isolated DuckDB database handle, permits
+the package's locally built unsigned extension, and loads it. These settings
+apply to that handle. Use `extension = FALSE` for relation-only work.
+
+```{sql loaded-extension, eval=TRUE}
+SELECT extension_name, extension_version, loaded
+FROM duckdb_extensions()
+WHERE extension_name = 'ducksemantics';
+```
+
+## 1. Inspect before running a model
+
+A GGUF file contains metadata, a vocabulary, and tensor payloads. Inspection is
+useful even when the file's architecture is not supported for inference.
+
+The bundled file below is a tiny **synthetic parser fixture**, not a trained
+model. Its three tensors let us examine the on-disk layout without downloading
+weights. SQL chunks run on the same connection as the R chunks; `?gguf_fixture`
+is safely interpolated from the R variable.
+
+```{r fixture-path, eval=TRUE}
+fixture <- function(name) {
+  system.file("extdata", name, package = "ducksemantics", mustWork = TRUE)
+}
+gguf_fixture <- fixture("valid.gguf")
+```
+
+```{sql gguf-layout, eval=TRUE}
+SELECT version, tensor_count, data_offset
+FROM gguf_header(?gguf_fixture);
+```
+
+```{sql gguf-metadata, eval=TRUE}
+SELECT key, value_type, value
+FROM gguf_metadata(?gguf_fixture)
+WHERE key IN ('general.architecture', 'general.name');
+```
+
+```{sql gguf-tensors, eval=TRUE}
+SELECT name, ggml_type, dims, n_bytes
+FROM gguf_tensors(?gguf_fixture)
+ORDER BY tensor_index;
+```
+
+## 2. Tokenization is distinct from inference
+
+Tokenization uses the file's vocabulary and tokenizer metadata, not its model
+weights. This synthetic Gemma vocabulary demonstrates encoding and decoding;
+it is not a useful tokenizer for natural-language retrieval.
+
+```{r tokenizer-path, eval=TRUE}
+tokenizer_fixture <- fixture("tokenizer_gemma.gguf")
+```
+
+```{sql tokenize, eval=TRUE}
+WITH encoded AS (
+  SELECT semantic_tokenize(?tokenizer_fixture, 'abc', false) AS ids
+)
+SELECT ids,
+       semantic_detokenize(?tokenizer_fixture, ids) AS decoded
+FROM encoded;
+```
+
+Real models have their own tokenizers and task prefixes. Keep the model,
+preprocessing, dimensions, and normalization settings with the stored vectors.
+Vectors from different representations are not interchangeable.
+
+## 3. Rank token vectors with a score you can check
+
+`semantic_maxsim(query, document)` implements late interaction:
+
+\[
+\operatorname{MaxSim}(Q,D) = \sum_i \max_j q_i^\mathsf{T} d_j.
+\]
+
+Each query token chooses its best matching document token; the best dot
+products are summed. This is a dot-product score, not an automatic cosine
+similarity or probability. Both inputs must have the same vector width.
+
+Use two unit query vectors and three deliberately simple documents. An exact
+match contributes `1` for each query token, so the first document scores `2`.
+A document containing only the first token scores `1`.
+
+```{sql rank-vectors, eval=TRUE}
+WITH documents(document_id, vectors) AS (
+  VALUES
+    ('both',  [[1.0, 0.0], [0.0, 1.0]]::FLOAT[][]),
+    ('first', [[1.0, 0.0]]::FLOAT[][]),
+    ('away',  [[-1.0, 0.0], [0.0, -1.0]]::FLOAT[][])
+)
+SELECT document_id,
+       semantic_maxsim([[1.0, 0.0], [0.0, 1.0]], vectors) AS score
+FROM documents
+ORDER BY score DESC, document_id;
+```
+
+This example tests the reduction, not biomedical relevance. In a retrieval
+pipeline, an encoder supplies the token vectors; SQL supplies filtering,
+scoring, ordering, and the join back to source identity.
+
+## 4. Keep Mondo releases and source mappings visible
+
+Disease labels change, and terms can become obsolete. An unversioned graph
+cannot answer which label or mapping was available at a historical cutoff.
+A source catalog therefore selects by **provider availability**, not by sorting
+version strings or commit author dates.
+
+The offline fixture contains three complete term stanzas from Mondo
+`v2026-10-06`: Marfan syndrome, an obsolete term, and its replacement. The
+receipt records both the upstream file digest and the smaller fixture digest.
+The fixture is a subset, not the entire ontology.
+
+```{r source-catalog, eval=TRUE}
+receipts <- read.csv(fixture("source-releases.csv"), stringsAsFactors = FALSE)
+receipts$available_at <- as.POSIXct(
+  receipts$available_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"
+)
+catalog <- ducksemantics_source_release_catalog(receipts)
+mondo_release <- ducksemantics_source_release_select(
+  catalog, "Mondo", as_of = as.POSIXct("2026-10-07", tz = "UTC")
+)
+mondo <- ducksemantics_mondo_import(
+  fixture("mondo-subset.obo"), mondo_release,
+  source_id = mondo_release$source_id,
+  source_uri = mondo_release$source_uri,
+  sha256 = mondo_release$sha256
+)
+DBI::dbWriteTable(conn, "mondo_terms", mondo$terms)
+DBI::dbWriteTable(conn, "mondo_mappings", mondo$mappings)
+DBI::dbWriteTable(conn, "mondo_obsolescence", mondo$obsolescence)
+```
+
+```{sql mondo-terms, eval=TRUE}
+SELECT node_id, label, is_obsolete, release_id
+FROM mondo_terms
+ORDER BY node_id;
+```
+
+```{sql mondo-replacement, eval=TRUE}
+SELECT node_id, tag, value, source_row_id
+FROM mondo_obsolescence
+WHERE tag = 'replaced_by';
+```
+
+Mappings retain their source annotations. An `xref` alone does not mean exact
+equivalence; the raw assertion and any explicit SKOS mapping are available for
+inspection rather than being silently promoted to one predicate.
+
+```{sql mondo-mapping, eval=TRUE}
+SELECT tag, value
+FROM mondo_mappings
+WHERE node_id = 'MONDO:0007947'
+  AND value = 'skos:exactMatch OMIM:154700';
+```
+
+## 5. Import DisMech as source records, not proposals
+
+The second fixture is the verbatim public Marfan Syndrome YAML record at
+DisMech commit `fac61860115b1fdb194de4f4cacef3a8f6a398af`. Its receipt uses the
+fixture's observed-availability timestamp, not the commit author date.
+Import verifies the supplied bytes against the pinned SHA-256.
+
+```{r dismech-import, eval=TRUE}
+dismech_release <- ducksemantics_source_release_select(
+  catalog, "DisMech", release_id = "fac61860115b1fdb194de4f4cacef3a8f6a398af"
+)
+dismech <- ducksemantics_dismech_import(
+  fixture("dismech-marfan.yaml"), dismech_release,
+  source_id = dismech_release$source_id,
+  source_uri = dismech_release$source_uri,
+  sha256 = dismech_release$sha256
+)
+DBI::dbWriteTable(conn, "dismech_fields", dismech$fields)
+```
+
+The field relation preserves source locations as JSON pointers, with
+zero-based array indices. For example, mechanism zero cites an exact PMID.
+The locator identifies a field in the imported record; it is not a new
+upstream evidence accession.
+
+```{sql dismech-evidence, eval=TRUE}
+SELECT field_path, value, source_row_id
+FROM dismech_fields
+WHERE field_path IN (
+  '/disease_term/term/id',
+  '/pathophysiology/0/name',
+  '/pathophysiology/0/evidence/0/reference'
+)
+ORDER BY field_path;
+```
+
+The complete YAML is retained in `dismech$records`. Scalar fields include
+mechanisms, ontology references, citations, and source snippets. This importer
+does not validate a DisMech contribution or independently verify the cited
+papers. Model-generated hypotheses require separate relations and an executable
+Bench consumer before evaluation ([issue #1](https://github.com/RGenomicsETL/ducksemantics/issues/1)).
+
+## Caller-supplied models
+
+The extension supports EmbeddingGemma-300M dense embeddings, the closed
+LFM2.5-ColBERT-350M encoder profile, and greedy LFM2-MoE generation. Unsupported
+architectures or layouts produce errors. Weights are never bundled or fetched.
+
+To run a dense embedding, explicitly set `DUCKSEMANTICS_EMBED_MODEL` to a
+local supported GGUF file. The summary
+checks the output width and norm without printing a large vector. With no
+model selected, it reports that fact instead of manufacturing inference output.
+
+```{r caller-model, eval=TRUE}
+model <- Sys.getenv("DUCKSEMANTICS_EMBED_MODEL")
+if (nzchar(model)) {
+  summary <- DBI::dbGetQuery(conn, "
+    WITH encoded AS (
+      SELECT semantic_embed(?, ?, 'retrieval_query', 256, true) AS vector
+    )
+    SELECT len(vector) AS dimensions,
+           sqrt(list_sum(list_transform(vector, x -> x * x))) AS norm
+    FROM encoded
+  ", params = list(model, "connective tissue disorder"))
+  stopifnot(summary$dimensions == 256, abs(summary$norm - 1) < 1e-5)
+  print(summary)
+} else {
+  cat("No caller model selected; the offline walkthrough needs no weights.\n")
+}
+```
+
+See the [native kernel reference](docs/native-kernels.md) for SQL signatures,
+model profiles, tokenizer limits, numerical tolerances, and oracle commands.
+The R package also retains its [semantic relation contracts](docs/semantic-relations.md),
+including HPO validation, dated Monarch pack projections, and append-only
+literature snapshot retrieval.
+
+## Reproduce the examples and tests
+
+Rendering requires `knitr`, `rmarkdown`, and Pandoc. The standalone SQL suite
+also requires the DuckDB CLI on `PATH`.
+
+```sh
+make test          # Native C and standalone DuckDB SQL tests
+make r-test        # Self-contained package build, install, and tinytest tests
+make r-check       # R CMD check of the source tarball
+make readme        # Knit this document against the isolated package library
+make r-sync-check  # Verify bundled C sources match the canonical tree
+```
+
+README R and SQL chunks execute with errors treated as failures. The offline
+fixtures are sufficient for the default render. Set the model environment
+variable to opt into model-backed execution; it does not change the offline
+test requirements.
+
+```{r disconnect, eval=TRUE}
+DBI::dbDisconnect(conn, shutdown = TRUE)
+```
+
+Mondo's fixture is distributed under CC BY 4.0; DisMech's fixture retains its
+upstream BSD 3-Clause notice. Source URIs, release identities, selection details,
+and SHA-256 receipts are bundled with the fixtures. See
+`r/ducksemantics/inst/LICENSE.note` for attribution.

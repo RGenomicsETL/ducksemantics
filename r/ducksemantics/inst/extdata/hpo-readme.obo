@@ -1,0 +1,49 @@
+format-version: 1.2
+ontology: hp
+remark: Minimal attribution-preserving README fixture derived from the Human Phenotype Ontology (HPO), https://hpo.jax.org/, CC BY 4.0.
+
+[Term]
+id: HP:0000118
+name: Phenotypic abnormality
+def: "A phenotypic abnormality." [https://orcid.org/0000-0002-0736-9199]
+comment: This is the root of the phenotypic abnormality subontology of the HPO.
+synonym: "Organ abnormality" EXACT []
+xref: UMLS:C4021819
+is_a: HP:0000001 ! All
+
+[Term]
+id: HP:0001250
+name: Seizure
+alt_id: HP:0001275
+alt_id: HP:0001303
+def: "A seizure is an intermittent abnormality of nervous system physiology characterized by a transient occurrence of signs and/or symptoms due to abnormal excessive or synchronous neuronal activity in the brain." [https://orcid.org/0000-0002-0736-9199, PMID:15816939]
+synonym: "Epilepsy" RELATED layperson []
+synonym: "Epileptic seizure" EXACT []
+synonym: "Seizures" EXACT plural_form []
+xref: UMLS:C0014544
+xref: UMLS:C0036572
+is_a: HP:0012638 ! Abnormal nervous system physiology
+
+[Term]
+id: HP:0001252
+name: Hypotonia
+alt_id: HP:0011398
+def: "Hypotonia is an abnormally low muscle tone (the amount of tension or resistance to movement in a muscle)." [https://orcid.org/0000-0002-0736-9199, PMID:21418198]
+synonym: "Low muscle tone" EXACT layperson []
+synonym: "Muscle hypotonia" EXACT []
+synonym: "Muscular hypotonia" EXACT []
+xref: UMLS:C0026827
+is_a: HP:0003808 ! Abnormal muscle tone
+
+[Term]
+id: HP:0004322
+name: Short stature
+alt_id: HP:0001509
+alt_id: HP:0003501
+def: "A height below that which is expected according to age and gender norms." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Decreased body height" EXACT layperson []
+synonym: "Height less than 3rd percentile" EXACT []
+synonym: "Small stature" EXACT []
+xref: UMLS:C0349588
+is_a: HP:0000002 ! Abnormality of body height
+is_a: HP:0001510 ! Growth delay

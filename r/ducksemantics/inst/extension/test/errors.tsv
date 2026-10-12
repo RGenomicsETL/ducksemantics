@@ -1,0 +1,78 @@
+# SQL<TAB>substring of the expected error
+SELECT * FROM gguf_header('build/fixtures/does_not_exist.gguf');	cannot open
+SELECT * FROM gguf_header('build/fixtures');	is not a regular file
+SELECT * FROM gguf_header(NULL);	GGUF path must be a non-NULL string
+SELECT * FROM gguf_header('build/fixtures/bad_magic.gguf');	does not start with the GGUF magic
+SELECT * FROM gguf_header('build/fixtures/version1.gguf');	GGUF version 1 is not supported
+SELECT * FROM gguf_header('build/fixtures/truncated.gguf');	payload overruns the file
+SELECT * FROM gguf_header('build/fixtures/huge_counts.gguf');	header counts exceed what the file can hold
+SELECT * FROM gguf_header('build/fixtures/string_overrun.gguf');	string of 100 bytes overruns the file
+SELECT * FROM gguf_header('build/fixtures/duplicate_key.gguf');	duplicate metadata key 'general.architecture'
+SELECT * FROM gguf_header('build/fixtures/duplicate_tensor.gguf');	duplicate tensor 'w'
+SELECT * FROM gguf_header('build/fixtures/misaligned.gguf');	offset is not aligned
+SELECT * FROM gguf_header('build/fixtures/payload_overrun.gguf');	payload overruns the file
+SELECT * FROM gguf_header('build/fixtures/too_many_dims.gguf');	has 5 dimensions
+SELECT * FROM gguf_header('build/fixtures/bad_alignment.gguf');	is not a power of two
+SELECT * FROM gguf_header('build/fixtures/partial_block.gguf');	is not a multiple of the q8_0 block
+SELECT * FROM gguf_header('build/fixtures/unknown_value_type.gguf');	unknown type 77
+SELECT * FROM gguf_metadata('build/fixtures/bad_utf8.gguf');	not valid UTF-8
+SELECT * FROM gguf_metadata_array('build/fixtures/valid.gguf', 't.u8');	is not an array
+SELECT * FROM gguf_metadata_array('build/fixtures/valid.gguf', 'missing');	is not an array
+SELECT * FROM gguf_metadata_array('build/fixtures/valid.gguf', NULL);	metadata key must be a non-NULL string
+SELECT semantic_maxsim([[1.0, 0.0]], [[1.0, 0.0, 0.0]]);	different widths
+SELECT semantic_maxsim([[1.0, 0.0], [1.0]], [[1.0, 0.0]]);	different widths
+SELECT semantic_maxsim([[1.0, 0.0], NULL], [[1.0, 0.0]]);	token embedding is NULL
+SELECT semantic_maxsim([[1.0, NULL]], [[1.0, 0.0]]);	contains a NULL element
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'missing', 0, 1);	tensor not found
+SELECT gguf_tensor_values('build/fixtures/truncated.gguf', 'w', 0, 1);	payload overruns the file
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.future', 0, 1);	unsupported quant type
+SELECT gguf_tensor_values('build/fixtures/bad_quant_row.gguf', 'w', 0, 1);	row of 16 is not a multiple
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32', 9, 0);	element range out of bounds
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32', 7, 2);	element range out of bounds
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32', 0, 18446744073709551615::UBIGINT);	element range out of bounds
+SELECT gguf_tensor_values('build/fixtures/valid.gguf' || chr(0), 'w.f32', 0, 1);	must not contain NUL
+SELECT gguf_tensor_values('build/fixtures/valid.gguf', 'w.f32' || chr(0), 0, 1);	must not contain NUL
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.q8_0', list_transform(range(32), x -> 0::FLOAT));	requires rank >= 2
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, 2, 3]);	x length equal to dim[0]
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, NULL, 3, 4]);	must not contain NULL
+SELECT gguf_tensor_matvec('build/fixtures/valid.gguf', 'w.f32', [1, 'NaN'::FLOAT, 3, 4]);	must contain finite
+SELECT gguf_tensor_matvec('build/fixtures/quant.gguf', 'w.8', list_transform(range(512), x -> 1e30::FLOAT));	scale out of range
+SELECT gguf_tensor_matvec('build/fixtures/quant.gguf', 'w.15', list_transform(range(512), x -> 1e-40::FLOAT));	scale out of range
+SELECT semantic_tokenize('build/fixtures/valid.gguf','x',true);	unsupported GGUF tokenizer
+SELECT semantic_tokenize('build/fixtures/absent.gguf','x',true);	cannot stat tokenizer
+SELECT semantic_tokenize('build/fixtures/tokenizer_missing_types.gguf','x',true);	invalid or missing tokenizer.ggml.token_type
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_bos.gguf','x',true);	bos_token_id outside vocabulary
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_merge.gguf','x',true);	merge operands outside vocabulary
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_utf8.gguf','x',true);	invalid UTF-8 token
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_lengths.gguf','x',true);	invalid or missing tokenizer.ggml.token_type
+SELECT semantic_tokenize('build/fixtures/tokenizer_bad_score.gguf','x',true);	non-finite tokenizer score
+SELECT semantic_tokenize('build/fixtures/' || chr(0) || 'tokenizer_lfm.gguf','x',true);	tokenizer path contains NUL
+SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[NULL]::INTEGER[]);	NULL token id
+SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[-1]);	token id outside vocabulary
+SELECT semantic_detokenize('build/fixtures/tokenizer_lfm.gguf',[267]);	token id outside vocabulary
+SELECT semantic_embed('missing','x','query',768,true);	unknown EmbeddingGemma task
+SELECT semantic_embed('missing','x','raw' || chr(0),768,true);	unknown EmbeddingGemma task
+SELECT semantic_embed('missing','x','raw',0,true);	unsupported embedding dimension
+SELECT semantic_embed('missing','x','raw',769,true);	unsupported embedding dimension
+SELECT semantic_embed('missing','x','raw',-1,true);	unsupported embedding dimension
+SELECT semantic_embed('build/fixtures/absent.gguf','x','raw',768,true);	cannot stat EmbeddingGemma model
+SELECT semantic_embed('build/fixtures','x','raw',768,true);	not a regular file
+SELECT semantic_embed('build/fixtures/valid.gguf','x','raw',768,true);	general.architecture=gemma-embedding
+SELECT semantic_embed('build/fixtures/gemma_shape.gguf','x','raw',768,true);	tensor token_embd.weight
+SELECT semantic_embed('build/fixtures/gemma_type.gguf','x','raw',768,true);	tensor token_embd.weight
+SELECT semantic_embed('build/fixtures/gemma_missing.gguf','x','raw',768,true);	tensor token_embd.weight
+SELECT semantic_embed('bad' || chr(0), 'x','raw',768,true);	path contains NUL
+SELECT semantic_colbert_encode('build/fixtures/valid.gguf', 'BRCA1', 'Query');	ColBERT role must be
+SELECT semantic_colbert_encode('build/fixtures/valid.gguf', 'BRCA1', 'query');	unsupported LFM2 profile: general.architecture
+SELECT semantic_colbert_encode('/no/model.gguf', 'BRCA1', 'document');	cannot stat LFM2 model
+SELECT semantic_colbert_encode('', 'BRCA1', 'query');	invalid LFM2 model path
+SELECT semantic_colbert_encode('build/fixtures/colbert_missing.gguf', 'BRCA1', 'query');	missing LFM2 tensor: token_embd.weight
+SELECT semantic_colbert_encode('build/fixtures/colbert_shape.gguf', 'BRCA1', 'query');	LFM2 tensor shape mismatch: token_embd.weight
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', 0);	LFM2 generation length out of bounds
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', -1);	LFM2 generation length out of bounds
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', 1025);	LFM2 generation length out of bounds
+SELECT semantic_generate('build/fixtures/valid.gguf', 'Hello', 32);	unsupported LFM2 profile: general.architecture
+SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [-1]);	LFM2 requested token id must be non-NULL and within vocabulary
+SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [128000]);	LFM2 requested token id must be non-NULL and within vocabulary
+SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [0,NULL]);	LFM2 requested token id must be non-NULL and within vocabulary
+SELECT semantic_next_token_logits('', 'Hello', [0]);	invalid LFM2 model path

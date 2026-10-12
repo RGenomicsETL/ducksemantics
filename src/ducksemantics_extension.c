@@ -5,8 +5,8 @@
  *   gguf_header(path), gguf_metadata(path), gguf_metadata_array(path, key),
  *   gguf_tensors(path)        read-only views of one GGUF model file
  *   semantic_maxsim(q, d)     ColBERT late-interaction score
- * No model is loaded or executed here yet; the GGUF views are the receipt and
- * inspection surface the model kernels will bind to.
+ * The GGUF views provide receipt and inspection metadata. Model kernels are
+ * registered by their own modules.
  */
 #include "duckdb_extension.h"
 
