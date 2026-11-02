@@ -17,6 +17,8 @@ jobs:
           r-version: release
           use-public-rspm: true
       - uses: r-lib/actions/setup-pandoc@v2
+        with:
+          pandoc-version: '3.1.3'
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: r/ducksemantics
