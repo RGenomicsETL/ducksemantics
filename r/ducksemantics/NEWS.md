@@ -1,7 +1,12 @@
 # ducksemantics development
 
+- Support bounded causal LFM2-MoE prefill batches with scalar parity checks.
+- Expose generation text, actual token-work counts, phase timings and rates
+  together through `semantic_generate_stats()`.
 - Literature retrieval skips nonmatching sections and preserves optional
   subsection labels and source entity ordinals in matching spans.
+- Validate reviewed hypothesis observations against exact versioned source
+  spans, and build pinned Mondo, DisMech or Monarch contribution artifacts.
 
 # ducksemantics 0.3.0
 

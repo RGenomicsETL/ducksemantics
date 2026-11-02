@@ -174,7 +174,7 @@ R_PACKAGE = r/ducksemantics
 R_BUILD = build/r
 R_LIB = $(abspath $(R_BUILD)/library)
 
-.PHONY: r-bootstrap r-sync-check r-build r-install r-test r-check readme site
+.PHONY: r-bootstrap r-sync-check r-build r-install r-test r-check package-readme readme site
 r-bootstrap:
 	Rscript $(R_PACKAGE)/tools/bootstrap.R
 
@@ -196,7 +196,10 @@ r-test: r-install
 r-check: r-build
 	cd $(R_BUILD) && R CMD check --no-manual --no-build-vignettes ducksemantics_*.tar.gz
 
-readme: r-install
+package-readme: r-install
+	cd $(R_PACKAGE) && R_LIBS=$(R_LIB) Rscript tools/render-readme.R
+
+readme: r-install package-readme
 	R_LIBS=$(R_LIB) Rscript scripts/render-readme.R
 
 # The helper owns distribution packaging, not the self-contained R build.

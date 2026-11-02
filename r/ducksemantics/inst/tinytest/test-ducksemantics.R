@@ -51,6 +51,9 @@ hpo_observations <- data.frame(
 accepted <- ducksemantics_hpo_observations(source_documents, hpo_observations)
 expect_equal(accepted$context_status, contexts)
 expect_equal(ducksemantics_hpo_observation_contract(), names(accepted))
+proband_present <- ducksemantics_hpo_proband_present(accepted)
+expect_equal(proband_present$context_status, "present")
+expect_false("family_history" %in% proband_present$context_status)
 hallucinated <- hpo_observations[1L, , drop = FALSE]; hallucinated$source_text <- "diabetes"
 expect_error(ducksemantics_hpo_observations(source_documents, hallucinated), "exactly")
 empty_span <- hpo_observations[1L, , drop = FALSE]; empty_span$end_offset <- empty_span$start_offset

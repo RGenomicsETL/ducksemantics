@@ -10,6 +10,11 @@ local({
   )
   titles <- c("Walkthrough", "Native kernels", "Semantic relations")
   stopifnot(file.exists(names(pages)))
+  if (file.exists("README.Rmd") &&
+      file.info("README.Rmd")$mtime > file.info("README.md")$mtime) {
+    stop("README.md is older than README.Rmd; run make readme first.",
+         call. = FALSE)
+  }
   dir.create(destination, recursive = TRUE, showWarnings = FALSE)
   destination <- normalizePath(destination)
   file.copy(file.path("docs", "site.css"), destination, overwrite = TRUE)

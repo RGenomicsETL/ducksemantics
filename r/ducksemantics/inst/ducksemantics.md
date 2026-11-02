@@ -2,9 +2,10 @@
 
 **Current architecture:** ducksemantics owns ontology graphs, HPO extraction
 observations, typed release-cataloged Monarch gene/phenotype/disease relations,
-semantic and literature retrieval, source-grounded judgments, and real
-model/provider protocols. The source of truth is the source checkout's
-`ARCHITECTURE.md`.
+semantic and literature retrieval, source-grounded judgments, reviewed
+hypotheses, bounded contribution artifacts, and real model/provider protocols.
+The source of truth is the repository's
+[semantic relation guide](https://github.com/RGenomicsETL/ducksemantics/blob/main/docs/semantic-relations.md).
 
 Bulk values are data frames or caller-owned DuckDB relations. S7 is reserved
 for genuine prompt, embedding, parser, and annotator protocols; it is not used

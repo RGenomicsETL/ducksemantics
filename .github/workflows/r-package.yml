@@ -49,9 +49,12 @@ jobs:
           echo 'b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63  build/models/embeddinggemma-300M-Q8_0.gguf' | sha256sum -c -
       - name: Execute the README and build the static site
         env:
-          R_LIBS: build/r/library
+          R_LIBS: ${{ github.workspace }}/build/r/library
           DUCKSEMANTICS_EMBED_MODEL: build/models/embeddinggemma-300M-Q8_0.gguf
-        run: Rscript scripts/render-readme.R
+        run: |
+          (cd r/ducksemantics && Rscript tools/render-readme.R)
+          Rscript scripts/render-readme.R
+          git diff --exit-code -- README.md r/ducksemantics/README.md
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -60,3 +63,4 @@ jobs:
             build/r/ducksemantics.Rcheck
             build/site
             README.md
+            r/ducksemantics/README.md

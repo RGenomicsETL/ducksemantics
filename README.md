@@ -3,63 +3,51 @@
 
 # DuckSemantics
 
-DuckSemantics is a DuckDB extension for semantic computation over local
-files. It inspects GGUF model files, tokenizes text, runs supported CPU
-models, and scores vectors in ordinary SQL. The **ducksemantics** R
-package builds and loads the extension. It also imports ontology and
-knowledge-base records, with their release identities.
+DuckSemantics lets DuckDB read local GGUF model files, tokenize and
+embed text, and score source passages in the same database as the
+versioned records those passages came from. The extension and its
+supported model kernels are pure C11 and use DuckDB’s stable C extension
+ABI. You provide model weights as a local file; the package does not
+bundle or download them.
 
-One rule runs through this walkthrough: **a retrieval score is not a
-source fact**. Imported records keep their provider, release, and
-receipt. Scores and model output go into their own relations, so they
-never overwrite a source record.
+The purpose of that design is traceability. A similarity score tells you
+which passage to inspect first, not whether the passage is true. Mondo
+and DisMech imports therefore keep their provider, release and SHA-256
+receipt. Scores, hypotheses and reviewed contribution artifacts remain
+separate relations that point back to exact source rows and spans.
 
-The walkthrough below is a single executed session. Every output comes
-from running it against a real EmbeddingGemma model and the bundled
-source fixtures.
+This page is one executed session against a real EmbeddingGemma-300M
+model and verbatim upstream fixtures. Rendering stops if the model is
+absent, has the wrong architecture, or any assertion below fails. No
+result is precomputed.
 
-| Step                                               | What it shows                                          |
-|----------------------------------------------------|--------------------------------------------------------|
-| [1](#1-select-and-inspect-a-model)                 | Read the model file’s metadata and tensor layout       |
-| [2](#2-tokenize-with-the-models-vocabulary)        | Turn text into the model’s token ids                   |
-| [3](#3-embed-short-texts)                          | Produce vectors and check their type, width, and norm  |
-| [4](#4-load-versioned-source-records)              | Import Mondo and DisMech records with release receipts |
-| [5](#5-rank-source-records-for-a-question)         | Score DisMech mechanisms against a question in SQL     |
-| [6](#6-trace-a-result-to-its-evidence-and-release) | Join the top result back to citations and releases     |
+## What this session proves
+
+| Claim                                                        | Executed proof                                     |
+|--------------------------------------------------------------|----------------------------------------------------|
+| A caller-supplied GGUF runs through the pure-C extension     | model metadata, tokenization and embeddings below  |
+| Imported source rows are release-bound and byte-verified     | Mondo and DisMech receipts, plus a rejected digest |
+| Retrieval does not manufacture evidence                      | ranked mechanisms joined to their own citations    |
+| A reviewed hypothesis cites exact source text                | hypothesis and source-span validation              |
+| Contribution output is reviewable, not automatic publication | pinned DisMech schema receipt                      |
 
 ## Install and connect
 
-The R package lives in `r/ducksemantics`. It bundles the C sources and
-builds the extension during installation. It does not download headers
-or model weights. Linux needs a C11 compiler and GNU make. The Linux
-x86-64 build is verified locally; the distribution pipeline tests Linux
-x86-64 and ARM64. macOS, Windows, and webR await native portability
-verification.
-
-From a repository checkout, with the R dependencies in
-`r/ducksemantics/DESCRIPTION` installed (including `duckdb`):
+From a repository checkout, install the package and its bundled
+extension:
 
 ``` sh
 make r-bootstrap
 R CMD INSTALL r/ducksemantics
 ```
 
-For an isolated development library, use `make r-install` and start R
-with `R_LIBS=build/r/library`. To build only the standalone extension,
-run `make` and load `build/ducksemantics.duckdb_extension` in a DuckDB
-CLI started with `-unsigned`. The extension uses DuckDB’s stable C
-extension ABI **1.2.0**.
+The same canonical C source list builds the standalone extension with
+`make` or CMake. Model weights remain outside the package.
 
 ``` r
 library(ducksemantics)
 conn <- ducksemantics_connect()
 ```
-
-`ducksemantics_connect()` opens an isolated DuckDB database, allows the
-locally built unsigned extension, and loads it. These settings apply
-only to that connection. The R and SQL chunks below share it. A SQL
-chunk refers to an R variable as `?name`, and the value is quoted
-safely.
 
 ``` sql
 SELECT extension_name, loaded
@@ -75,13 +63,11 @@ WHERE extension_name = 'ducksemantics';
 
 </div>
 
-## 1. Select and inspect a model
+## 1. Bring your own model
 
-Package installation never bundles or downloads model weights. You
-supply a local file through `DUCKSEMANTICS_EMBED_MODEL`. This README
-needs EmbeddingGemma-300M in GGUF format (for example
-`embeddinggemma-300M-Q8_0.gguf`). If the variable is not set, the render
-stops here.
+Set `DUCKSEMANTICS_EMBED_MODEL` to an EmbeddingGemma-300M GGUF file. The
+render fails here instead of silently replacing the model example with
+fixture output.
 
 ``` r
 embed_model <- Sys.getenv("DUCKSEMANTICS_EMBED_MODEL")
@@ -96,83 +82,44 @@ embed_model_sha256
 #> [1] "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
 ```
 
-A GGUF file holds metadata, a vocabulary, and tensor payloads. You can
-read all three without running the model. The architecture key tells you
-which kernel can run it.
+The architecture key selects the native kernel. Width and block count
+are read from the file, not hard-coded from its filename.
 
 ``` sql
 SELECT key, value
 FROM gguf_metadata(?embed_model)
 WHERE key IN ('general.architecture', 'general.name',
               'gemma-embedding.embedding_length',
-              'gemma-embedding.block_count', 'tokenizer.ggml.model');
+              'gemma-embedding.block_count', 'tokenizer.ggml.model')
+ORDER BY key;
 ```
-
-<div class="knitsql-table">
-
-| key                              | value               |
-|:---------------------------------|:--------------------|
-| general.architecture             | gemma-embedding     |
-| general.name                     | Embeddinggemma 300m |
-| gemma-embedding.block_count      | 24                  |
-| gemma-embedding.embedding_length | 768                 |
-| tokenizer.ggml.model             | llama               |
-
-</div>
-
-``` sql
-SELECT ggml_type, count(*) AS tensors,
-       round(sum(n_bytes) / 2^20, 1) AS mebibytes
-FROM gguf_tensors(?embed_model)
-GROUP BY ggml_type
-ORDER BY mebibytes DESC;
-```
-
-<div class="knitsql-table">
-
-| ggml_type | tensors | mebibytes |
-|:----------|--------:|----------:|
-| q8_0      |     171 |     311.6 |
-| f32       |     145 |       0.3 |
-
-</div>
-
-The package also includes small **synthetic** GGUF files. The offline
-tests use them to exercise the parser and tokenizers. They are not
-trained models. The header shows the difference:
 
 ``` r
-parser_fixture <- system.file("extdata", "valid.gguf",
-                              package = "ducksemantics", mustWork = TRUE)
+architecture <- model_profile$value[
+  model_profile$key == "general.architecture"
+]
+embedding_length <- model_profile$value[
+  model_profile$key == "gemma-embedding.embedding_length"
+]
+stopifnot(
+  length(architecture) == 1L,
+  identical(architecture, "gemma-embedding"),
+  length(embedding_length) == 1L,
+  as.integer(embedding_length) == 768L
+)
 ```
 
-``` sql
-SELECT 'caller model' AS file, tensor_count, metadata_count, file_bytes
-FROM gguf_header(?embed_model)
-UNION ALL
-SELECT 'synthetic fixture', tensor_count, metadata_count, file_bytes
-FROM gguf_header(?parser_fixture);
-```
+## 2. Tokens and vectors
 
-<div class="knitsql-table">
-
-| file              | tensor_count | metadata_count | file_bytes |
-|:------------------|-------------:|---------------:|-----------:|
-| caller model      |          316 |             41 |  333590944 |
-| synthetic fixture |            3 |             18 |        960 |
-
-</div>
-
-## 2. Tokenize with the model’s vocabulary
-
-Tokenization uses only the vocabulary and tokenizer metadata, not the
-weights. With `add_special = true`, the Gemma profile adds BOS and EOS.
-Joining each id to `tokenizer.ggml.tokens` shows the stored piece; `▁`
-marks a word boundary.
+Tokenization uses the vocabulary stored in the same GGUF file. Gemma
+control tokens are omitted during decoding, so the input text
+round-trips.
 
 ``` sql
 WITH encoded AS (
-  SELECT semantic_tokenize(?embed_model, 'Marfan syndrome aortic dilation', true) AS ids
+  SELECT semantic_tokenize(
+    ?embed_model, 'Marfan syndrome aortic dilation', true
+  ) AS ids
 ),
 pieces AS (
   SELECT generate_subscripts(ids, 1) AS position, unnest(ids) AS id
@@ -203,28 +150,16 @@ ORDER BY position;
 SELECT semantic_detokenize(
   ?embed_model,
   semantic_tokenize(?embed_model, 'Marfan syndrome aortic dilation', true)
-) AS round_trip;
+) AS text;
 ```
 
-<div class="knitsql-table">
-
-| round_trip                      |
-|:--------------------------------|
-| Marfan syndrome aortic dilation |
-
-</div>
-
-The decoder omits control tokens, so the text round-trips.
-`semantic_embed` adds the task prefix and tokenizes internally. You do
-not pass these ids to it.
-
-## 3. Embed short texts
+``` r
+stopifnot(identical(round_trip$text, "Marfan syndrome aortic dilation"))
+```
 
 `semantic_embed(path, text, task, dimensions, normalize)` runs the
-EmbeddingGemma forward pass. The task selects the input prefix. Here,
-`retrieval_query` means `task: search result | query:`. The model
-returns 768 values. A smaller `dimensions` keeps the leading values, and
-`normalize` then scales the subvector to unit length.
+native EmbeddingGemma forward pass. Query and document task prefixes
+remain explicit.
 
 ``` r
 embed_task <- "retrieval_query"
@@ -234,16 +169,15 @@ embed_dimensions <- 256L
 ``` sql
 CREATE TABLE short_texts AS
 SELECT text_id, text,
-       semantic_embed(?embed_model, text, ?embed_task, ?embed_dimensions, true) AS embedding
+       semantic_embed(
+         ?embed_model, text, ?embed_task, ?embed_dimensions, true
+       ) AS embedding
 FROM (VALUES
-  ('marfan',     'Marfan syndrome'),
-  ('fibrillin',  'defective fibrillin-1 microfibrils'),
-  ('diabetes',   'insulin resistance in type 2 diabetes')
+  ('marfan',    'Marfan syndrome'),
+  ('fibrillin', 'defective fibrillin-1 microfibrils'),
+  ('diabetes',  'insulin resistance in type 2 diabetes')
 ) AS t(text_id, text);
 ```
-
-Each result is a `FLOAT[]` list. Check its type, width, and norm before
-using it:
 
 ``` sql
 SELECT text_id,
@@ -256,53 +190,23 @@ ORDER BY text_id;
 ```
 
 ``` r
-vector_shape
-#>     text_id    type dimensions      norm                        first_values
-#> 1  diabetes FLOAT[]        256 0.9999999  [-0.1815, 0.0743, -0.0354, 0.0624]
-#> 2 fibrillin FLOAT[]        256 1.0000000 [-0.178, -0.0132, -0.0081, -0.0038]
-#> 3    marfan FLOAT[]        256 1.0000001  [-0.233, -0.0015, 0.0897, -0.1025]
-stopifnot(vector_shape$type == "FLOAT[]",
-          vector_shape$dimensions == embed_dimensions,
-          abs(vector_shape$norm - 1) < 1e-5)
+stopifnot(
+  vector_shape$type == "FLOAT[]",
+  vector_shape$dimensions == embed_dimensions,
+  abs(vector_shape$norm - 1) < 1e-5
+)
 ```
 
-For unit vectors, the dot product is the cosine similarity. These are
-raw similarities between the three texts, not calibrated probabilities:
+These vectors are local model outputs. Their dot products are
+similarities, not calibrated probabilities.
 
-``` sql
-SELECT a.text_id AS text_a, b.text_id AS text_b,
-       round(list_dot_product(a.embedding, b.embedding), 4) AS cosine
-FROM short_texts a
-JOIN short_texts b ON a.text_id < b.text_id
-ORDER BY cosine DESC;
-```
+## 3. Load source records at a date
 
-<div class="knitsql-table">
-
-| text_a    | text_b    | cosine |
-|:----------|:----------|-------:|
-| fibrillin | marfan    | 0.3841 |
-| diabetes  | marfan    | 0.2886 |
-| diabetes  | fibrillin | 0.2468 |
-
-</div>
-
-Vectors need the same model, width, and normalization, with the model’s
-paired query/document task conventions. The tables below record those
-settings next to each vector.
-
-## 4. Load versioned source records
-
-Disease labels change, and terms become obsolete. To answer “what did
-the source say at a given date?”, the source catalog chooses a release
-by **provider availability time**. It does not sort version strings or
-commit dates. Each import checks the file’s bytes against a SHA-256
-receipt before it reads them.
-
-The bundled fixtures are real upstream content. The Mondo fixture holds
-three complete term stanzas from release `v2026-10-06`. The DisMech
-fixture is the verbatim Marfan syndrome record at commit `fac6186`. The
-receipts record the upstream digest as well as the fixture digest.
+The bundled Mondo fixture contains complete term stanzas from release
+`v2026-10-06`. The DisMech fixture is the verbatim Marfan syndrome
+record at a pinned commit. A catalog selects releases by provider
+availability time, and each importer verifies the input bytes before
+parsing them.
 
 ``` r
 fixture <- function(name) {
@@ -325,7 +229,8 @@ mondo <- ducksemantics_mondo_import(
 )
 
 dismech_release <- ducksemantics_source_release_select(
-  catalog, "DisMech", release_id = "fac61860115b1fdb194de4f4cacef3a8f6a398af"
+  catalog, "DisMech",
+  release_id = "fac61860115b1fdb194de4f4cacef3a8f6a398af"
 )
 dismech <- ducksemantics_dismech_import(
   fixture("dismech-marfan.yaml"), dismech_release,
@@ -335,12 +240,9 @@ dismech <- ducksemantics_dismech_import(
 )
 
 DBI::dbWriteTable(conn, "mondo_terms", mondo$terms)
-DBI::dbWriteTable(conn, "mondo_mappings", mondo$mappings)
 DBI::dbWriteTable(conn, "mondo_obsolescence", mondo$obsolescence)
 DBI::dbWriteTable(conn, "dismech_fields", dismech$fields)
 ```
-
-Every imported row carries its release and receipt:
 
 ``` sql
 SELECT provider_id, release_id, receipt_id, count(*) AS rows
@@ -362,7 +264,8 @@ ORDER BY provider_id;
 
 </div>
 
-The Mondo subset includes an obsolete term and its replacement:
+The Mondo relation keeps obsolescence explicit instead of silently
+replacing an identifier.
 
 ``` sql
 SELECT t.node_id, t.label, t.is_obsolete, o.value AS replaced_by
@@ -382,33 +285,29 @@ ORDER BY t.node_id;
 
 </div>
 
-A Mondo `xref` alone does not mean exact equivalence. The importer keeps
-each mapping assertion as written, so an explicit SKOS predicate stays
-visible:
+A wrong digest is rejected before the parser can emit rows.
 
-``` sql
-SELECT tag, value
-FROM mondo_mappings
-WHERE node_id = 'MONDO:0007947'
-  AND value = 'skos:exactMatch OMIM:154700';
+``` r
+tamper_error <- tryCatch(
+  ducksemantics_mondo_import(
+    fixture("mondo-subset.obo"), mondo_release,
+    source_id = mondo_release$source_id,
+    source_uri = mondo_release$source_uri,
+    sha256 = paste(rep("0", 64L), collapse = "")
+  ),
+  error = identity
+)
+stopifnot(inherits(tamper_error, "error"))
+conditionMessage(tamper_error)
+#> [1] "Source artifact SHA-256 does not match its receipt."
 ```
 
-<div class="knitsql-table">
+## 4. Ask a question
 
-| tag            | value                       |
-|:---------------|:----------------------------|
-| property_value | skos:exactMatch OMIM:154700 |
-
-</div>
-
-DisMech is imported as one row per scalar field. Each field has a JSON
-pointer with zero-based array indices. The pointer locates a field in
-the imported record. It is not a new upstream accession.
-
-## 5. Rank source records for a question
-
-The Marfan record describes six pathophysiology mechanisms. This query
-gets each description and its name from the source fields:
+The DisMech record contains six pathophysiology descriptions. Document
+vectors use `retrieval_document`; the question uses `retrieval_query`.
+The vector and score relations retain the source row keys and model
+digest.
 
 ``` sql
 CREATE TABLE mechanisms AS
@@ -424,19 +323,17 @@ JOIN dismech_fields n
 WHERE regexp_matches(d.field_path, '^/pathophysiology/[0-9]+/description$');
 ```
 
-Documents use the `retrieval_document` task, and questions use
-`retrieval_query`. Both use the same model, width, and normalization.
-The vector table stores the model digest and settings. It refers to the
-source rows by `source_row_id` and does not copy them.
-
 ``` sql
 CREATE TABLE mechanism_vectors AS
 SELECT provider_id, release_id, source_id, source_row_id,
        ?embed_model_sha256 AS model_sha256,
        'retrieval_document' AS task,
-       ?embed_dimensions AS dimensions, true AS normalized,
-       semantic_embed(?embed_model, description, 'retrieval_document',
-                      ?embed_dimensions, true) AS embedding
+       ?embed_dimensions AS dimensions,
+       true AS normalized,
+       semantic_embed(
+         ?embed_model, description, 'retrieval_document',
+         ?embed_dimensions, true
+       ) AS embedding
 FROM mechanisms;
 ```
 
@@ -444,13 +341,12 @@ FROM mechanisms;
 question <- "Why does the aortic wall weaken and dilate?"
 ```
 
-Scores go into their own relation, with the question that produced them:
-
 ``` sql
 CREATE TABLE mechanism_scores AS
 WITH query AS (
-  SELECT semantic_embed(?embed_model, ?question, ?embed_task,
-                        ?embed_dimensions, true) AS vector
+  SELECT semantic_embed(
+    ?embed_model, ?question, ?embed_task, ?embed_dimensions, true
+  ) AS vector
 )
 SELECT ?question AS question, ?embed_task AS query_task,
        v.provider_id, v.release_id, v.source_id, v.source_row_id,
@@ -479,14 +375,10 @@ ORDER BY s.cosine DESC;
 
 </div>
 
-The ranking tells you which source passage to read first. It does not
-show that the mechanism is correct. Those claims come from the record
-and its citations.
+## 5. A score is not evidence
 
-## 6. Trace a result to its evidence and release
-
-A score says nothing about evidence. Put the source’s own citation count
-next to each score:
+Citation fields are joined from the source record after ranking.
+Retrieval cannot add a citation that the source does not contain.
 
 ``` sql
 CREATE TABLE mechanism_evidence AS
@@ -496,8 +388,10 @@ FROM mechanisms m
 JOIN dismech_fields e
   ON e.provider_id = m.provider_id AND e.release_id = m.release_id
  AND e.source_id = m.source_id
- AND regexp_matches(e.field_path,
-                    '^' || m.field_prefix || '/evidence/[0-9]+/reference$');
+ AND regexp_matches(
+   e.field_path,
+   '^' || m.field_prefix || '/evidence/[0-9]+/reference$'
+ );
 ```
 
 ``` sql
@@ -505,28 +399,25 @@ SELECT m.mechanism, round(s.cosine, 4) AS cosine,
        count(e.reference) AS cited_references
 FROM mechanism_scores s
 JOIN mechanisms m USING (provider_id, release_id, source_id, source_row_id)
-LEFT JOIN mechanism_evidence e USING (provider_id, release_id, source_id, source_row_id)
+LEFT JOIN mechanism_evidence e
+  USING (provider_id, release_id, source_id, source_row_id)
 GROUP BY m.mechanism, s.cosine
 ORDER BY s.cosine DESC;
 ```
 
-<div class="knitsql-table">
+``` r
+stopifnot(
+  evidence_by_score$cited_references[[1L]] == 0,
+  any(evidence_by_score$cited_references > 0)
+)
+```
 
-| mechanism                       | cosine | cited_references |
-|:--------------------------------|-------:|-----------------:|
-| Extracellular Matrix Remodeling | 0.7187 |                0 |
-| Vascular Inflammation           | 0.4436 |                0 |
-| Impaired Mechanotransduction    | 0.4220 |                0 |
-| Mitochondrial Dysfunction       | 0.4121 |                0 |
-| Dysregulated TGF-beta Signaling | 0.3600 |                0 |
-| FBN1 Gene Mutation              | 0.2979 |                8 |
+The highest-ranked passage, Extracellular Matrix Remodeling, has no
+cited reference in this source record. The score is useful for
+navigation and invalid as a substitute for evidence.
 
-</div>
-
-In this record, only one mechanism has its own `evidence` entries. The
-closest passage has none. Retrieval found relevant text, but it cannot
-add a citation the source does not contain. The best-scoring mechanism
-that does cite evidence has these references:
+The best-ranked mechanism that does carry citations retains the source
+paths and reference identifiers:
 
 ``` sql
 WITH best AS (
@@ -534,20 +425,24 @@ WITH best AS (
   FROM mechanism_scores s
   JOIN mechanisms m USING (provider_id, release_id, source_id, source_row_id)
   WHERE EXISTS (
-    SELECT 1 FROM mechanism_evidence e
-    WHERE e.provider_id = m.provider_id AND e.release_id = m.release_id
-      AND e.source_id = m.source_id AND e.source_row_id = m.source_row_id
+    SELECT 1
+    FROM mechanism_evidence e
+    WHERE e.provider_id = m.provider_id
+      AND e.release_id = m.release_id
+      AND e.source_id = m.source_id
+      AND e.source_row_id = m.source_row_id
   )
   ORDER BY s.cosine DESC
   LIMIT 1
 )
-SELECT e.mechanism, e.reference, s.value AS supports, e.field_path
+SELECT e.mechanism, e.reference, support.value AS supports, e.field_path
 FROM mechanism_evidence e
 JOIN best USING (provider_id, release_id, source_id, source_row_id)
-LEFT JOIN dismech_fields s
-  ON s.provider_id = e.provider_id AND s.release_id = e.release_id
- AND s.source_id = e.source_id
- AND s.field_path = regexp_replace(e.field_path, '/reference$', '/supports')
+LEFT JOIN dismech_fields support
+  ON support.provider_id = e.provider_id
+ AND support.release_id = e.release_id
+ AND support.source_id = e.source_id
+ AND support.field_path = regexp_replace(e.field_path, '/reference$', '/supports')
 ORDER BY e.field_path;
 ```
 
@@ -566,9 +461,8 @@ ORDER BY e.field_path;
 
 </div>
 
-The DisMech record names its disease with a Mondo identifier. Joining
-that identifier to the Mondo import connects two separately versioned
-sources. Each side keeps its own release and receipt:
+The DisMech disease identifier also joins to a separately versioned
+Mondo row. Both receipts remain visible.
 
 ``` sql
 SELECT d.value AS disease_id,
@@ -590,104 +484,176 @@ WHERE d.field_path = '/disease_term/term/id';
 
 </div>
 
-Source facts, retrieval scores, and model-generated proposals stay in
-separate relations. The DisMech importer does not validate a DisMech
-contribution, and it does not check the cited papers. Model-generated
-hypotheses and reviewed contribution export are open work. They need
-their own relations and an executable Bench consumer before evaluation
-([issue \#1](https://github.com/RGenomicsETL/ducksemantics/issues/1)).
+## 6. Record a reviewed hypothesis
 
-## Check the late-interaction score
+A hypothesis is an observation, not a source fact. This example records
+a human-authored mechanism claim, a separate human review, and the exact
+quoted source span supporting it. The fixed identities and timestamps
+make the fixture reproducible; they do not represent an automated
+submission.
 
-`semantic_maxsim(query, document)` scores ColBERT-style token vectors.
-For each query token it takes the best dot product with any document
-token, then adds these maxima:
+``` r
+field <- function(path) {
+  row <- dismech$fields[dismech$fields$field_path == path, , drop = FALSE]
+  stopifnot(nrow(row) == 1L)
+  row
+}
+claim_field <- field("/pathophysiology/0/description")
+span_field <- field("/pathophysiology/0/evidence/0/snippet")
+reference_field <- field("/pathophysiology/0/evidence/0/reference")
 
-``` text
-MaxSim(Q, D) = sum over query tokens i of  max over document tokens j of  dot(q_i, d_j)
-```
-
-This is a raw dot-product sum. Normalized inputs make each dot product a
-cosine similarity; the sum is neither a single cosine nor a calibrated
-probability. Both inputs must have the same vector width. The toy
-vectors below check the arithmetic only. They are not a biomedical
-result. Two unit query vectors that match exactly score `2`. A document
-that matches only one of them scores `1`.
-
-``` sql
-WITH documents(document_id, vectors) AS (
-  VALUES
-    ('both',  [[1.0, 0.0], [0.0, 1.0]]::FLOAT[][]),
-    ('first', [[1.0, 0.0]]::FLOAT[][]),
-    ('away',  [[-1.0, 0.0], [0.0, -1.0]]::FLOAT[][])
+hypotheses <- data.frame(
+  hypothesis_id = "readme-hypothesis-1",
+  run_id = "readme-run-1",
+  case_id = "readme-case-1",
+  target_type = "gene",
+  candidate_id = "HGNC:3603",
+  proposal_type = "candidate",
+  claim_text = claim_field$value,
+  inheritance_id = "HP:0000006",
+  mechanism_text = claim_field$value,
+  proposer_type = "human",
+  proposer_id = "readme-author",
+  proposer_version = "1",
+  confidence = 0.9,
+  judgment = "supports",
+  missing_evidence = NA_character_,
+  contradiction = NA_character_,
+  review_status = "accepted",
+  reviewer_id = "readme-reviewer",
+  reviewed_at = as.POSIXct("2026-10-08", tz = "UTC"),
+  review_note = "The exact cited span supports the mechanism claim.",
+  supersedes_id = NA_character_,
+  recorded_at = as.POSIXct("2026-10-07", tz = "UTC"),
+  stringsAsFactors = FALSE
 )
-SELECT document_id,
-       semantic_maxsim([[1.0, 0.0], [0.0, 1.0]], vectors) AS score
-FROM documents
-ORDER BY score DESC, document_id;
+
+hypothesis_sources <- data.frame(
+  hypothesis_id = "readme-hypothesis-1",
+  provider_id = span_field$provider_id,
+  release_id = span_field$release_id,
+  source_id = span_field$source_id,
+  source_relation = "dismech_fields",
+  source_record_id = span_field$source_row_id,
+  source_field = span_field$field_path,
+  start_offset = 0L,
+  end_offset = nchar(span_field$value, type = "chars"),
+  source_span = span_field$value,
+  citation = reference_field$value,
+  evidence_role = "support",
+  stringsAsFactors = FALSE
+)
+
+source_fields <- dismech$fields[c(
+  "provider_id", "release_id", "source_id", "source_row_id",
+  "field_path", "value"
+)]
+hypothesis_bundle <- ducksemantics_hypotheses(
+  hypotheses,
+  hypothesis_sources,
+  source_fields
+)
+hypothesis_bundle$hypotheses[c(
+  "hypothesis_id", "candidate_id", "judgment", "review_status"
+)]
+#>         hypothesis_id candidate_id judgment review_status
+#> 1 readme-hypothesis-1    HGNC:3603 supports      accepted
 ```
 
-<div class="knitsql-table">
+The validator resolves the provider, release, source, record and field
+keys, then checks the zero-based half-open span against the versioned
+field text. Abstentions remain valid observations but carry neither
+confidence nor source spans.
 
-| document_id | score |
-|:------------|------:|
-| both        |     2 |
-| first       |     1 |
-| away        |     0 |
+## 7. Build a reviewable contribution
 
-</div>
+Accepted or revised observations can become contribution artifacts. This
+DisMech payload uses fields and enums from a pinned LinkML schema
+revision. The package validates the supported subset and returns the
+schema receipt; the upstream DisMech validator and a human submission
+are still required.
+
+``` r
+dismech_payload <- list(
+  name = "Marfan Syndrome",
+  disease_term = list(id = "MONDO:0007947", label = "Marfan syndrome"),
+  pathophysiology = list(list(
+    name = "FBN1 Gene Mutation",
+    biological_scale = "MOLECULAR",
+    description = claim_field$value,
+    evidence = list(list(
+      reference = reference_field$value,
+      supports = "SUPPORT",
+      evidence_source = "HUMAN_CLINICAL",
+      quote_role = "PRIMARY_RESULT",
+      snippet = span_field$value,
+      explanation = "The quoted source identifies FBN1 as causal in Marfan syndrome."
+    ))
+  ))
+)
+
+contribution <- ducksemantics_contribution(
+  hypotheses,
+  hypothesis_sources,
+  source_fields,
+  hypothesis_id = "readme-hypothesis-1",
+  target = "dismech",
+  payload = dismech_payload
+)
+contribution$schema
+#>    target                                    schema_uri
+#> 1 dismech https://github.com/monarch-initiative/dismech
+#>                            schema_revision                     schema_path
+#> 1 3e6cb8631b383355d9b590e5930a38f1813f9094 src/dismech/schema/dismech.yaml
+#>                                                                                                   validation_scope
+#> 1 Pinned disease, pathophysiology, and evidence fields/enums; run the upstream LinkML validator before submission.
+```
+
+The artifact is suitable for review. It is not inserted into the
+imported DisMech relation and is not published automatically.
 
 ``` r
 DBI::dbDisconnect(conn, shutdown = TRUE)
 ```
 
-## Further reference
+## Boundaries and reference
 
-- [Native kernel reference](docs/native-kernels.md): SQL signatures, the
-  EmbeddingGemma, LFM2.5-ColBERT-350M, and LFM2-MoE profiles, tokenizer
-  limits, numerical tolerances, and oracle commands.
-- [Semantic relation contracts](docs/semantic-relations.md): HPO
-  validation, dated Monarch pack projections, and append-only literature
-  snapshots.
+- [Native kernels](docs/native-kernels.md) documents SQL signatures,
+  supported architectures, numerical tolerances and oracle commands.
+- [Semantic relations](docs/semantic-relations.md) documents HPO,
+  Monarch, literature, source-release, hypothesis and contribution
+  contracts.
+- [R package walkthrough](r/ducksemantics/README.md) exercises
+  acceptance, rejection and release-cutoff behavior without model
+  weights.
+- [VariantStoryBench](https://github.com/RGenomicsETL/VariantStoryBench)
+  owns candidate evaluation, grounding metrics and abstention
+  accounting. Its `bench_ducksemantics_grounding()` adapter consumes the
+  hypothesis relation.
 
-Model support depends on the architecture. The extension does not run
-arbitrary GGUF files. Unsupported architectures or tensor layouts raise
-errors.
+DuckSemantics does not run arbitrary GGUF architectures. It does not
+treat model scores as calibrated confidence, copy RClinVarbitration’s
+source history, or publish ontology and knowledge-base contributions
+without human action.
 
 ## Reproduce
 
-Rendering needs `knitr`, `rmarkdown`, Pandoc, and a local EmbeddingGemma
-GGUF file. The standalone SQL suite also needs the DuckDB CLI on `PATH`.
+Rendering requires `knitr`, `rmarkdown`, Pandoc and a local
+EmbeddingGemma GGUF. The native and package checks use offline fixtures
+and do not need model weights.
 
 ``` sh
-make test          # Native C and standalone DuckDB SQL tests
-make r-test        # Package build, install, and tinytest tests
-make r-check       # R CMD check of the source tarball
-make r-sync-check  # Check that bundled C sources match the canonical tree
-
-git submodule update --init extension-ci-tools
-make configure release test_release  # Distribution artifact and C/CLI contracts
+make test
+make sanitize
+make r-check
+make r-sync-check
 
 DUCKSEMANTICS_EMBED_MODEL=/path/to/embeddinggemma-300M-Q8_0.gguf make readme
 ```
 
-`make readme` runs every chunk in this document and stops on the first
-error. It writes `README.md`. It then builds a static HTML copy of
-`README.md` and `docs/` in `build/site`, without running the chunks
-again. The offline test suites use only the synthetic fixtures and need
-no model weights. R-package CI stages a separate, revision-pinned and
-SHA-256-verified reference model for this executed document; weights are
-governed by the Gemma Terms of Use and are not included in published
-package artifacts.
-
-The distribution workflow uses the pinned `extension-ci-tools` submodule
-and its reusable stable-C-ABI pipeline. Native Make and CMake share
-`src/sources.list`. Release and debug test targets run the existing C
-oracles and CLI SQL suite against the distribution artifact, with no
-wheel-based test skip. R source-package installation remains independent
-of the CI helpers.
-
-Mondo’s fixture is distributed under CC BY 4.0. DisMech’s fixture keeps
-its upstream BSD 3-Clause notice. Source URIs, release identities,
-selection details, and SHA-256 receipts are bundled with the fixtures.
-See `r/ducksemantics/inst/LICENSE.note` for attribution.
+`make readme` executes every chunk, writes `README.md`, and builds the
+static site from that rendered Markdown. The reference model is
+revision-pinned and SHA-256-verified in CI but is not distributed with
+the package. Mondo fixture content is CC BY 4.0; DisMech fixture content
+retains its BSD 3-Clause notice. See
+`r/ducksemantics/inst/LICENSE.note`.

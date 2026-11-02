@@ -174,6 +174,37 @@ ducksemantics_hpo_context_statuses <- function() {
   )
 }
 
+#' Select accepted proband-present HPO observations
+#'
+#' @param observations A validated HPO observation data frame or a caller-owned
+#'   DuckDB table name.
+#' @param conn A DuckDB connection when `observations` is a table name.
+#'
+#' @return Accepted observations whose `context_status` is `"present"`.
+#' @export
+ducksemantics_hpo_proband_present <- function(observations, conn = NULL) {
+  observations <- ducksemantics_collect_relation(
+    observations,
+    conn = conn,
+    arg = "observations"
+  )
+  contract <- ducksemantics_hpo_observation_contract()
+  missing <- setdiff(contract, names(observations))
+  if (length(missing) > 0L) {
+    stop("HPO observations are missing columns: ",
+         paste(missing, collapse = ", "), call. = FALSE)
+  }
+  if (!all(observations$context_status %in% ducksemantics_hpo_context_statuses())) {
+    stop("HPO observations contain an unsupported context_status", call. = FALSE)
+  }
+  if (!all(observations$status == "accepted")) {
+    stop("HPO observations must be accepted before proband selection",
+         call. = FALSE)
+  }
+  selected <- observations$context_status == "present"
+  observations[selected, contract, drop = FALSE]
+}
+
 ducksemantics_collect_relation <- function(
   relation,
   conn = NULL,
