@@ -1,13 +1,30 @@
 #!/bin/sh
-# Runs every test/sql/*.sql script (assertions raise error() on failure) and
-# every expected-error case in test/errors.tsv against one extension artifact.
+# Runs tokenizer, SQL, and expected-error cases against one built artifact.
+# Each invocation owns its mutable fixtures; the build workspace is read-only.
 set -u
 extension=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
+root=$(cd "$(dirname "$0")/.." && pwd) || exit 1
 duckdb=${DUCKDB:-duckdb}
-cd "$(dirname "$0")/.." || exit 1
+case $duckdb in
+    /*) ;;
+    */*) duckdb=$(pwd)/$duckdb ;;
+esac
+tokenizer=${TOKENIZER_TEST:-build/tokenizer_test}
+case $tokenizer in
+    /*) ;;
+    *) tokenizer=$root/$tokenizer ;;
+esac
+work=$(mktemp -d "${TMPDIR:-/tmp}/ducksemantics-test.XXXXXX") || exit 1
+trap 'rm -rf "$work"' 0
+trap 'exit 130' INT
+trap 'exit 143' TERM
+mkdir "$work/build" &&
+    cp -R "$root/build/fixtures" "$work/build/fixtures" &&
+    cp -R "$root/test" "$work/test" || exit 1
+cd "$work" || exit 1
 failed=0
 
-if "${TOKENIZER_TEST:-build/tokenizer_test}" build/fixtures; then
+if "$tokenizer" build/fixtures; then
     echo "ok   test/tokenizer_test.c"
 else
     failed=1

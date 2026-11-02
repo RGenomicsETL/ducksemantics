@@ -31,7 +31,7 @@ GGUF_FILES ?= $(wildcard /root/bebelm/*.gguf)
 
 TEST_EXTENSION ?= $(ARTIFACT)
 
-.PHONY: all test native-tests fixtures sanitize fuzz audit quant-oracle prefill-test prefill-bench prefill-sanitize clean
+.PHONY: all test native-tests native-test-artifacts test-prebuilt fixtures sanitize fuzz audit quant-oracle prefill-test prefill-bench prefill-sanitize clean
 all: $(ARTIFACT)
 
 $(LIBRARY): $(SOURCES) $(HEADERS) src/sources.list Makefile
@@ -81,6 +81,7 @@ build/bench_quant: scripts/bench_quant.c src/quant.c src/gguf.c src/quant.h src/
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ scripts/bench_quant.c src/quant.c src/gguf.c $(LDLIBS)
 
 build/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
+	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
 
 build/lfm2_oracle: test/lfm2_oracle.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
@@ -110,7 +111,10 @@ build/asan/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c sr
 test: $(ARTIFACT)
 	$(MAKE) native-tests
 
-native-tests: fixtures build/test_quant build/embeddinggemma_test build/lfm2_test
+native-test-artifacts: fixtures build/test_quant build/embeddinggemma_test build/lfm2_test
+
+native-tests: native-test-artifacts
+native-tests test-prebuilt:
 	build/test_quant
 	build/embeddinggemma_test
 	build/lfm2_test
@@ -219,11 +223,11 @@ ifneq ($(wildcard $(CI_TOOLS_MAKEFILES)/base.Makefile),)
 override SKIP_TESTS := 0
 include $(CI_TOOLS_MAKEFILES)/base.Makefile
 include $(CI_TOOLS_MAKEFILES)/c_cpp.Makefile
-override TEST_RUNNER_RELEASE = $(MAKE) native-tests DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/release/$(EXTENSION).duckdb_extension
-override TEST_RUNNER_DEBUG = $(MAKE) native-tests DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/debug/$(EXTENSION).duckdb_extension
+override TEST_RUNNER_RELEASE = $(MAKE) test-prebuilt DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/release/$(EXTENSION).duckdb_extension
+override TEST_RUNNER_DEBUG = $(MAKE) test-prebuilt DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/debug/$(EXTENSION).duckdb_extension
 
-# Distribution tests reuse one workspace inside and outside a container. Drop a
-# CMake cache only when its recorded source path belongs to the other host.
+# Builds can reuse one workspace across source roots. Drop a CMake cache only
+# when its recorded source path belongs to the other host.
 .PHONY: clean_foreign_cmake_release clean_foreign_cmake_debug
 clean_foreign_cmake_release:
 	@if test -f cmake_build/release/CMakeCache.txt && \
@@ -248,10 +252,10 @@ configure_cli: | distribution-directory
 # The reusable Linux workflow uses a nop configure inside its container.
 # The CLI remains a required, digest-verified host for the native test runner.
 configure_ci: configure_cli
-release: build_extension_with_metadata_release
-debug: build_extension_with_metadata_debug
-test_extension_release_internal: build_extension_with_metadata_release configure_cli
-test_extension_debug_internal: build_extension_with_metadata_debug configure_cli
+# Distribution builds prepare the native test assets. Test steps consume those
+# assets and the packaged binary without invoking a compiler or CMake.
+release: build_extension_with_metadata_release native-test-artifacts
+debug: build_extension_with_metadata_debug native-test-artifacts
 test_release: test_extension_release
 test_debug: test_extension_debug
 else
