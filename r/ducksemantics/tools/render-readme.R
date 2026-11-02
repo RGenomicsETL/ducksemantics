@@ -15,4 +15,11 @@ local({
          paste(checked[disabled], collapse = "; "), call. = FALSE)
   }
   rmarkdown::render(input, output_file = "README.md", quiet = TRUE)
+  rendered <- readLines("README.md", warn = FALSE, encoding = "UTF-8")
+  required <- c("walkthrough-h1", "state-abstained")
+  absent <- required[!vapply(required, function(x) any(grepl(x, rendered, fixed = TRUE)), logical(1))]
+  if (length(absent) > 0L) {
+    stop("Rendered package README is missing required results: ",
+         paste(absent, collapse = ", "), call. = FALSE)
+  }
 })

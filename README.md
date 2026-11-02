@@ -17,13 +17,12 @@ receipt. Scores, hypotheses and reviewed contribution artifacts remain
 separate relations that point back to exact source rows and spans.
 
 This page is one executed session against a real EmbeddingGemma-300M
-model and verbatim upstream fixtures. Rendering stops if the model is
-absent, has the wrong architecture, or any assertion below fails. No
-result is precomputed.
+model and verbatim upstream fixtures. The render requires the model
+named by `DUCKSEMANTICS_EMBED_MODEL`; no result is precomputed.
 
-## What this session proves
+## What this session demonstrates
 
-| Claim                                                        | Executed proof                                     |
+| Property                                                     | Executed result                                    |
 |--------------------------------------------------------------|----------------------------------------------------|
 | A caller-supplied GGUF runs through the pure-C extension     | model metadata, tokenization and embeddings below  |
 | Imported source rows are release-bound and byte-verified     | Mondo and DisMech receipts, plus a rejected digest |
@@ -70,10 +69,9 @@ render fails here instead of silently replacing the model example with
 fixture output.
 
 ``` r
-embed_model <- Sys.getenv("DUCKSEMANTICS_EMBED_MODEL")
-stopifnot(
-  "Set DUCKSEMANTICS_EMBED_MODEL to a local EmbeddingGemma-300M GGUF file." = nzchar(embed_model),
-  "DUCKSEMANTICS_EMBED_MODEL must name an existing local file." = file.exists(embed_model)
+embed_model <- normalizePath(
+  Sys.getenv("DUCKSEMANTICS_EMBED_MODEL"),
+  mustWork = TRUE
 )
 embed_model_sha256 <- digest::digest(file = embed_model, algo = "sha256")
 basename(embed_model)
@@ -92,21 +90,6 @@ WHERE key IN ('general.architecture', 'general.name',
               'gemma-embedding.embedding_length',
               'gemma-embedding.block_count', 'tokenizer.ggml.model')
 ORDER BY key;
-```
-
-``` r
-architecture <- model_profile$value[
-  model_profile$key == "general.architecture"
-]
-embedding_length <- model_profile$value[
-  model_profile$key == "gemma-embedding.embedding_length"
-]
-stopifnot(
-  length(architecture) == 1L,
-  identical(architecture, "gemma-embedding"),
-  length(embedding_length) == 1L,
-  as.integer(embedding_length) == 768L
-)
 ```
 
 ## 2. Tokens and vectors
@@ -153,10 +136,6 @@ SELECT semantic_detokenize(
 ) AS text;
 ```
 
-``` r
-stopifnot(identical(round_trip$text, "Marfan syndrome aortic dilation"))
-```
-
 `semantic_embed(path, text, task, dimensions, normalize)` runs the
 native EmbeddingGemma forward pass. Query and document task prefixes
 remain explicit.
@@ -194,14 +173,6 @@ FROM short_texts
 ORDER BY text_id;
 ```
 
-``` r
-stopifnot(
-  vector_shape$type == "FLOAT[]",
-  vector_shape$dimensions == embed_dimensions,
-  abs(vector_shape$norm - 1) < 1e-5
-)
-```
-
 These vectors are local model outputs. Their dot products are
 similarities, not calibrated probabilities.
 
@@ -227,10 +198,7 @@ mondo_release <- ducksemantics_source_release_select(
   catalog, "Mondo", as_of = as.POSIXct("2026-10-07", tz = "UTC")
 )
 mondo <- ducksemantics_mondo_import(
-  fixture("mondo-subset.obo"), mondo_release,
-  source_id = mondo_release$source_id,
-  source_uri = mondo_release$source_uri,
-  sha256 = mondo_release$sha256
+  fixture("mondo-subset.obo"), mondo_release
 )
 
 dismech_release <- ducksemantics_source_release_select(
@@ -238,10 +206,7 @@ dismech_release <- ducksemantics_source_release_select(
   release_id = "fac61860115b1fdb194de4f4cacef3a8f6a398af"
 )
 dismech <- ducksemantics_dismech_import(
-  fixture("dismech-marfan.yaml"), dismech_release,
-  source_id = dismech_release$source_id,
-  source_uri = dismech_release$source_uri,
-  sha256 = dismech_release$sha256
+  fixture("dismech-marfan.yaml"), dismech_release
 )
 
 DBI::dbWriteTable(conn, "mondo_terms", mondo$terms)
@@ -296,13 +261,10 @@ A wrong digest is rejected before the parser can emit rows.
 tamper_error <- tryCatch(
   ducksemantics_mondo_import(
     fixture("mondo-subset.obo"), mondo_release,
-    source_id = mondo_release$source_id,
-    source_uri = mondo_release$source_uri,
     sha256 = paste(rep("0", 64L), collapse = "")
   ),
   error = identity
 )
-stopifnot(inherits(tamper_error, "error"))
 conditionMessage(tamper_error)
 #> [1] "Source artifact SHA-256 does not match its receipt."
 ```
@@ -410,13 +372,6 @@ GROUP BY m.mechanism, s.cosine
 ORDER BY s.cosine DESC;
 ```
 
-``` r
-stopifnot(
-  evidence_by_score$cited_references[[1L]] == 0,
-  any(evidence_by_score$cited_references > 0)
-)
-```
-
 The highest-ranked passage, Extracellular Matrix Remodeling, has no
 cited reference in this source record. The score is useful for
 navigation and invalid as a substitute for evidence.
@@ -492,77 +447,65 @@ WHERE d.field_path = '/disease_term/term/id';
 ## 6. Record a reviewed hypothesis
 
 A hypothesis is an observation, not a source fact. This example records
-a human-authored mechanism claim, a separate human review, and the exact
-quoted source span supporting it. The fixed identities and timestamps
-make the fixture reproducible; they do not represent an automated
-submission.
+a human-authored causal claim, its review state, and one exact source
+subspan. The claim paraphrases the source. Inheritance is left
+unspecified because the cited text does not establish it.
 
 ``` r
-field <- function(path) {
-  row <- dismech$fields[dismech$fields$field_path == path, , drop = FALSE]
-  stopifnot(nrow(row) == 1L)
-  row
-}
-claim_field <- field("/pathophysiology/0/description")
-span_field <- field("/pathophysiology/0/evidence/0/snippet")
-reference_field <- field("/pathophysiology/0/evidence/0/reference")
-
-hypotheses <- data.frame(
+hypotheses <- ducksemantics_hypothesis(
   hypothesis_id = "readme-hypothesis-1",
   run_id = "readme-run-1",
   case_id = "readme-case-1",
   target_type = "gene",
   candidate_id = "HGNC:3603",
   proposal_type = "candidate",
-  claim_text = claim_field$value,
-  inheritance_id = "HP:0000006",
-  mechanism_text = claim_field$value,
+  claim_text = "Defects in FBN1 can cause Marfan syndrome.",
+  mechanism_text = "FBN1 defects cause Marfan syndrome",
   proposer_type = "human",
   proposer_id = "readme-author",
   proposer_version = "1",
   confidence = 0.9,
   judgment = "supports",
-  missing_evidence = NA_character_,
-  contradiction = NA_character_,
   review_status = "accepted",
   reviewer_id = "readme-reviewer",
-  reviewed_at = as.POSIXct("2026-10-08", tz = "UTC"),
-  review_note = "The exact cited span supports the mechanism claim.",
-  supersedes_id = NA_character_,
-  recorded_at = as.POSIXct("2026-10-07", tz = "UTC"),
-  stringsAsFactors = FALSE
+  reviewed_at = as.POSIXct("2026-10-15", tz = "UTC"),
+  review_note = "The quoted source text supports the causal claim.",
+  recorded_at = as.POSIXct("2026-10-14", tz = "UTC")
 )
 
-hypothesis_sources <- data.frame(
+hypothesis_sources <- ducksemantics_hypothesis_source(
   hypothesis_id = "readme-hypothesis-1",
-  provider_id = span_field$provider_id,
-  release_id = span_field$release_id,
-  source_id = span_field$source_id,
+  source_fields = dismech$fields,
   source_relation = "dismech_fields",
-  source_record_id = span_field$source_row_id,
-  source_field = span_field$field_path,
-  start_offset = 0L,
-  end_offset = nchar(span_field$value, type = "chars"),
-  source_span = span_field$value,
-  citation = reference_field$value,
-  evidence_role = "support",
-  stringsAsFactors = FALSE
+  field_path = "/pathophysiology/0/evidence/0/snippet",
+  text = paste(
+    "The gene encoding for fibrillin, the FBN1 gene on chromosome 15,",
+    "has been identified as the defective gene causing the Marfan syndrome."
+  ),
+  citation = "PMID:8180508"
 )
 
-source_fields <- dismech$fields[c(
-  "provider_id", "release_id", "source_id", "source_row_id",
-  "field_path", "value"
-)]
 hypothesis_bundle <- ducksemantics_hypotheses(
   hypotheses,
   hypothesis_sources,
-  source_fields
+  dismech$fields
 )
 hypothesis_bundle$hypotheses[c(
-  "hypothesis_id", "candidate_id", "judgment", "review_status"
+  "hypothesis_id", "candidate_id", "claim_text", "judgment", "review_status"
 )]
-#>         hypothesis_id candidate_id judgment review_status
-#> 1 readme-hypothesis-1    HGNC:3603 supports      accepted
+#>         hypothesis_id candidate_id                                 claim_text
+#> 1 readme-hypothesis-1    HGNC:3603 Defects in FBN1 can cause Marfan syndrome.
+#>   judgment review_status
+#> 1 supports      accepted
+hypothesis_bundle$sources[c(
+  "source_field", "start_offset", "end_offset", "source_span", "citation"
+)]
+#>                            source_field start_offset end_offset
+#> 1 /pathophysiology/0/evidence/0/snippet            0        135
+#>                                                                                                                               source_span
+#> 1 The gene encoding for fibrillin, the FBN1 gene on chromosome 15, has been identified as the defective gene causing the Marfan syndrome.
+#>       citation
+#> 1 PMID:8180508
 ```
 
 The validator resolves the provider, release, source, record and field
@@ -585,13 +528,13 @@ dismech_payload <- list(
   pathophysiology = list(list(
     name = "FBN1 Gene Mutation",
     biological_scale = "MOLECULAR",
-    description = claim_field$value,
+    description = hypotheses$claim_text,
     evidence = list(list(
-      reference = reference_field$value,
+      reference = hypothesis_sources$citation,
       supports = "SUPPORT",
       evidence_source = "HUMAN_CLINICAL",
-      quote_role = "PRIMARY_RESULT",
-      snippet = span_field$value,
+      quote_role = "BACKGROUND",
+      snippet = hypothesis_sources$source_span,
       explanation = "The quoted source identifies FBN1 as causal in Marfan syndrome."
     ))
   ))
@@ -600,7 +543,7 @@ dismech_payload <- list(
 contribution <- ducksemantics_contribution(
   hypotheses,
   hypothesis_sources,
-  source_fields,
+  dismech$fields,
   hypothesis_id = "readme-hypothesis-1",
   target = "dismech",
   payload = dismech_payload

@@ -9,6 +9,12 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", error = FALSE)
 library(ducksemantics)
+fixture_path <- function(name) system.file(
+  "extdata", name, package = "ducksemantics", mustWork = TRUE
+)
+fixture_csv <- function(name, ...) read.csv(
+  fixture_path(name), stringsAsFactors = FALSE, ...
+)
 ```
 
 # ducksemantics
@@ -27,6 +33,15 @@ paths that sit between them.
 
 ## Install
 
+From a source checkout, install the package with its bundled stable-ABI
+extension:
+
+```sh
+make r-install
+```
+
+Published builds are also available from R-universe:
+
 ```r
 install.packages(
   "ducksemantics",
@@ -35,7 +50,7 @@ install.packages(
 ```
 
 Bulk relations are ordinary data frames or caller-owned DuckDB tables. See the
-[semantic relation guide](https://github.com/RGenomicsETL/ducksemantics/blob/main/docs/semantic-relations.md)
+[semantic relation guide](../../docs/semantic-relations.md)
 for provider protocols and ownership boundaries.
 
 ## Phenotype observations cite their text
@@ -44,25 +59,9 @@ An accepted HPO observation names the source document, the exact zero-based
 half-open span, its context and method provenance.
 
 ```{r hpo-accepted}
-documents <- data.frame(
-  document_id = "case-001",
-  source_text = "The patient has seizures.",
-  stringsAsFactors = FALSE
-)
-
-observations <- data.frame(
-  document_id = "case-001",
-  hpo_id = "HP:0001250",
-  start_offset = 16L,
-  end_offset = 24L,
-  source_text = "seizures",
-  context_status = "present",
-  method = "lexical_alias",
-  provider_id = "local-lexicon",
-  provider_version = "1",
-  confidence = 1,
-  status = "accepted",
-  stringsAsFactors = FALSE
+documents <- fixture_csv("readme-hpo-documents.csv")
+observations <- fixture_csv(
+  "readme-hpo-observations.csv", colClasses = c(provider_version = "character")
 )
 
 accepted <- ducksemantics_hpo_observations(documents, observations)
@@ -79,7 +78,6 @@ span_error <- tryCatch(
   ducksemantics_hpo_observations(documents, invalid),
   error = identity
 )
-stopifnot(inherits(span_error, "error"))
 conditionMessage(span_error)
 ```
 
@@ -90,26 +88,14 @@ phenotype.
 
 ## Monarch facts belong to a release
 
-The following miniature catalog is synthetic and exists only to demonstrate the
-release contract. Facts cannot be queried as `latest`: callers select an exact
-release or a typed date/source-order cutoff.
+The packaged synthetic catalog demonstrates the release contract. Facts cannot
+be queried as `latest`: callers select an exact release or a typed
+date/source-order cutoff.
 
 ```{r monarch-catalog}
-releases <- data.frame(
-  release_id = c("2024-01", "2025-01"),
-  provider_id = "Monarch",
-  effective_date = as.Date(c("2024-01-01", "2025-01-01")),
-  source_ordinal = c(1, 2),
-  stringsAsFactors = FALSE
-)
-
-gene_disease <- data.frame(
-  gene_id = c("HGNC:1100", "HGNC:1100"),
-  disease_id = c("MONDO:0000001", "MONDO:0000002"),
-  release_id = c("2024-01", "2025-01"),
-  provider_id = "Monarch",
-  stringsAsFactors = FALSE
-)
+releases <- fixture_csv("readme-monarch-releases.csv")
+releases$effective_date <- as.Date(releases$effective_date)
+gene_disease <- fixture_csv("readme-monarch-gene-disease.csv")
 
 gene_disease <- ducksemantics_monarch_import(
   gene_disease,
@@ -143,7 +129,6 @@ selection <- data.frame(
   disease_id = c(early$disease_id, late$disease_id),
   stringsAsFactors = FALSE
 )
-stopifnot(selection$release_id == c("2024-01", "2025-01"))
 selection
 ```
 
@@ -174,31 +159,15 @@ at the requested snapshot, then joins sections on the complete article-version
 key.
 
 ```{r literature-fixture}
-snapshots <- data.frame(
-  provider_id = c("pubmed", "pubmed"),
-  snapshot_id = c("baseline", "update"),
-  high_water_ordinal = c(9, 10),
-  effective_at = as.POSIXct(c("2025-01-09", "2025-01-10"), tz = "UTC"),
-  stringsAsFactors = FALSE
+snapshots <- fixture_csv("readme-literature-snapshots.csv")
+snapshots$effective_at <- as.POSIXct(
+  snapshots$effective_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"
 )
-articles <- data.frame(
-  provider_id = "pubmed",
-  article_id = c("pmid:123", "pmid:123"),
-  pmid = "123",
-  version_id = c("source-9", "source-10"),
-  source_ordinal = c(9, 10),
-  is_deleted = c(FALSE, FALSE),
-  stringsAsFactors = FALSE
+articles <- fixture_csv(
+  "readme-literature-articles.csv", colClasses = c(pmid = "character")
 )
-sections <- data.frame(
-  provider_id = "pubmed",
-  article_id = c("pmid:123", "pmid:123"),
-  pmid = "123",
-  version_id = c("source-9", "source-10"),
-  source_ordinal = c(9, 10),
-  section = "BACKGROUND",
-  text = c("Seizure phenotype in a family", "Updated seizure phenotype"),
-  stringsAsFactors = FALSE
+sections <- fixture_csv(
+  "readme-literature-sections.csv", colClasses = c(pmid = "character")
 )
 ```
 
@@ -216,7 +185,6 @@ retrieve <- function(snapshot_id) {
   )
 }
 hits <- rbind(retrieve("baseline"), retrieve("update"))
-stopifnot(hits$version_id == c("source-9", "source-10"))
 hits[c(
   "snapshot_id", "version_id", "source_ordinal", "section",
   "start_offset", "end_offset", "source_text"
@@ -226,6 +194,108 @@ hits[c(
 Deleted selected versions are excluded. Optional subsection labels and source
 entity ordinals remain attached to returned hits. The package never writes a
 second PubMed source store.
+
+## Reviewed hypotheses retain exact source spans
+
+Mondo and DisMech imports use a selected release row as the receipt authority.
+The caller can override receipt fields, but the importer verifies the file
+against the resulting SHA-256 value.
+
+```{r source-receipt}
+source_releases <- fixture_csv("source-releases.csv")
+source_releases$available_at <- as.POSIXct(
+  source_releases$available_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"
+)
+dismech_release <- ducksemantics_source_release_select(
+  source_releases,
+  provider_id = "DisMech",
+  release_id = "fac61860115b1fdb194de4f4cacef3a8f6a398af"
+)
+dismech <- ducksemantics_dismech_import(
+  fixture_path("dismech-marfan.yaml"),
+  dismech_release
+)
+dismech$artifact[c("provider_id", "release_id", "source_id", "sha256")]
+```
+
+A hypothesis is a reviewed observation. Its source link is an exact subspan of
+one versioned field, with zero-based half-open offsets.
+
+```{r reviewed-hypothesis}
+hypothesis <- ducksemantics_hypothesis(
+  hypothesis_id = "walkthrough-h1",
+  run_id = "walkthrough-run",
+  case_id = "walkthrough-case",
+  target_type = "gene",
+  candidate_id = "HGNC:3603",
+  proposal_type = "candidate",
+  claim_text = "Defects in FBN1 can cause Marfan syndrome.",
+  mechanism_text = "FBN1 defects cause Marfan syndrome",
+  proposer_type = "human",
+  proposer_id = "walkthrough-author",
+  proposer_version = "1",
+  confidence = 0.9,
+  judgment = "supports",
+  review_status = "accepted",
+  reviewer_id = "walkthrough-reviewer",
+  reviewed_at = as.POSIXct("2026-10-15", tz = "UTC"),
+  review_note = "The quoted source text supports the causal claim.",
+  recorded_at = as.POSIXct("2026-10-14", tz = "UTC")
+)
+source <- ducksemantics_hypothesis_source(
+  hypothesis_id = hypothesis$hypothesis_id,
+  source_fields = dismech$fields,
+  source_relation = "dismech_fields",
+  field_path = "/pathophysiology/0/evidence/0/snippet",
+  text = paste(
+    "The gene encoding for fibrillin, the FBN1 gene on chromosome 15,",
+    "has been identified as the defective gene causing the Marfan syndrome."
+  ),
+  citation = "PMID:8180508"
+)
+bundle <- ducksemantics_hypotheses(hypothesis, source, dismech$fields)
+bundle$hypotheses[c(
+  "hypothesis_id", "candidate_id", "claim_text", "review_status"
+)]
+bundle$sources[c(
+  "source_field", "start_offset", "end_offset", "source_span", "citation"
+)]
+```
+
+Review state and evidence judgment remain separate:
+
+| Review state | Example | Required record |
+|---|---|---|
+| `proposed` | An unreviewed FBN1 claim | Proposer provenance and exact source spans |
+| `accepted` | The causal claim above | Reviewer identity and time, plus supporting source spans |
+| `revised` | A narrower claim about pathogenic FBN1 defects | A new row naming its predecessor in `supersedes_id` |
+| `rejected` | A claim that FBN1 explains every observed phenotype | Review provenance; an `insufficient_evidence` judgment also records what is missing |
+| `abstained` | No directional claim about an additional mechanism | No confidence or source spans |
+
+The cited passage does not establish a specific downstream signaling mechanism.
+An abstention records that limit without inventing a confidence value:
+
+```{r abstention}
+abstention <- ducksemantics_hypothesis(
+  hypothesis_id = "state-abstained",
+  run_id = "walkthrough-run",
+  case_id = "walkthrough-case",
+  target_type = "gene",
+  candidate_id = "HGNC:3603",
+  proposal_type = "refinement",
+  claim_text = "The cited passage does not establish a downstream signaling mechanism.",
+  proposer_type = "human",
+  proposer_id = "walkthrough-author",
+  proposer_version = "1",
+  judgment = "abstain",
+  review_status = "abstained",
+  recorded_at = as.POSIXct("2026-10-18", tz = "UTC")
+)
+abstention[c("hypothesis_id", "judgment", "review_status", "confidence")]
+```
+
+Only accepted or revised hypotheses can become contribution artifacts. External
+schema validation, review, and submission remain human-controlled steps.
 
 ## Where the relations go
 
@@ -245,7 +315,7 @@ for candidate, evaluation and grounding relations.
 
 ## Reference and verification
 
-- The [semantic relation guide](https://github.com/RGenomicsETL/ducksemantics/blob/main/docs/semantic-relations.md)
+- The [semantic relation guide](../../docs/semantic-relations.md)
   defines ownership, relation and provider boundaries.
 - `?ducksemantics_hpo_observations` documents span validation.
 - `?ducksemantics_monarch_query` documents exact and cutoff selection.

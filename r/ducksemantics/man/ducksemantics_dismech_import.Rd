@@ -4,18 +4,26 @@
 \alias{ducksemantics_dismech_import}
 \title{Import a pinned DisMech source record}
 \usage{
-ducksemantics_dismech_import(path, release, source_id, source_uri, sha256)
+ducksemantics_dismech_import(
+  path,
+  release,
+  source_id = NULL,
+  source_uri = NULL,
+  sha256 = NULL
+)
 }
 \arguments{
 \item{path}{Local source file. No network access is performed.}
 
 \item{release}{One selected row of \code{\link[=ducksemantics_source_release_catalog]{ducksemantics_source_release_catalog()}}.}
 
-\item{source_id}{Exact source artifact identity within the release.}
+\item{source_id}{Exact artifact identity within the release. Defaults to
+\code{release$source_id}.}
 
-\item{source_uri}{Pinned public source URI for the artifact.}
+\item{source_uri}{Pinned public source URI. Defaults to \code{release$source_uri}.}
 
-\item{sha256}{Expected SHA-256 of the supplied bytes.}
+\item{sha256}{Expected lowercase SHA-256 of the supplied bytes. Defaults to
+\code{release$sha256}.}
 }
 \value{
 A list of release, artifact, record, and field relations. Records and

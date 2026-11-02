@@ -661,24 +661,8 @@ The tiny BF16 tensor includes f32 subnormals (2,466 of its first 100,000
 values are nonzero subnormals). Floating-point underflow behavior is preserved;
 its unusually low rate is not representative of ordinary BF16 model weights.
 
-## Direction
+## Roadmap
 
-Next phases, each validated before the next starts:
-
-1. **Typed decisions.** A Jev-compatible `semantic_system_one(state,
-   questions)` returns per-option probabilities for yes/no, choice and score
-   questions. It scores only the allowed option tokens, with no text
-   generation or parsing, and returns a receipt of model digest, prompt
-   template digest, option token ids and kernel build.
-2. **KV reuse inside DuckDB chunks.** The cache for the shared instruction
-   prefix is computed once. Within a chunk, rows that share a document reuse
-   its KV state and branch per question. A per-thread cache carries a run
-   across chunk boundaries, keyed by a hash of the rendered byte prefix as in
-   ds4's KV store. Several questions on one document are evaluated inside one
-   call in cost order, so an AI filter short-circuits on cached state.
-3. **Encoder-backed decisions and receipts.** A Laya-style encoder with a
-   decision head, with EmbeddingGemma and ColBERT results behind the same
-   receipts.
-
-Model weights are never bundled; the caller supplies a path and the receipt
-records its digest.
+Candidate typed-decision, shared-prefix generation, and encoder-backed decision
+work is tracked in [the roadmap](roadmap.md). The roadmap is separate from this
+implemented and verified kernel reference. Model weights remain caller-supplied.

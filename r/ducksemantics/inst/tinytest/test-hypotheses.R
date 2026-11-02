@@ -59,6 +59,77 @@ local({
   expect_equal(bundle$hypotheses$hypothesis_id, "hypothesis-1")
   expect_equal(bundle$sources$source_span, field_text)
 
+  constructed_hypothesis <- ducksemantics::ducksemantics_hypothesis(
+    hypothesis_id = "hypothesis-1",
+    run_id = "run-1",
+    case_id = "case-1",
+    target_type = "gene",
+    candidate_id = "HGNC:3603",
+    proposal_type = "candidate",
+    claim_text = field_text,
+    inheritance_id = "HP:0000006",
+    mechanism_text = "Reduced extracellular matrix signaling",
+    proposer_type = "model",
+    proposer_id = "fixture-model",
+    proposer_version = "1",
+    confidence = 0.9,
+    judgment = "supports",
+    review_status = "accepted",
+    reviewer_id = "reviewer-1",
+    reviewed_at = as.POSIXct("2026-01-02", tz = "UTC"),
+    review_note = "The cited span supports the proposed mechanism.",
+    recorded_at = as.POSIXct("2026-01-01", tz = "UTC")
+  )
+  expect_equal(constructed_hypothesis, hypothesis)
+
+  source_fields$source_note <- "retained by the source import"
+  constructed_source <- ducksemantics::ducksemantics_hypothesis_source(
+    "hypothesis-1",
+    source_fields,
+    "dismech_fields",
+    "/pathophysiology/0/description",
+    text = "fibrillin changes extracellular matrix",
+    citation = "PMID:8180508"
+  )
+  expected_start <- regexpr(
+    "fibrillin changes extracellular matrix",
+    field_text,
+    fixed = TRUE
+  ) - 1L
+  expect_equal(constructed_source$start_offset, as.integer(expected_start))
+  expect_equal(
+    constructed_source$end_offset,
+    as.integer(expected_start + nchar(constructed_source$source_span))
+  )
+  expect_equal(
+    constructed_source$source_span,
+    "fibrillin changes extracellular matrix"
+  )
+  expect_equal(
+    ducksemantics::ducksemantics_hypotheses(
+      constructed_hypothesis,
+      constructed_source,
+      source_fields
+    )$sources,
+    constructed_source
+  )
+  expect_error(
+    ducksemantics::ducksemantics_hypothesis_source(
+      "hypothesis-1", source_fields, "dismech_fields",
+      "/pathophysiology/0/description", text = "not present",
+      citation = "PMID:8180508"
+    ),
+    "exactly once"
+  )
+  expect_error(
+    ducksemantics::ducksemantics_hypothesis_source(
+      "hypothesis-1", source_fields, "dismech_fields",
+      "/pathophysiology/0/description", text = "e",
+      citation = "PMID:8180508"
+    ),
+    "exactly once"
+  )
+
   invalid <- source
   invalid$source_span <- paste0(invalid$source_span, " altered")
   expect_error(

@@ -1,0 +1,2 @@
+"document_id","hpo_id","start_offset","end_offset","source_text","context_status","method","provider_id","provider_version","confidence","status"
+"case-001","HP:0001250",16,24,"seizures","present","lexical_alias","local-lexicon","1",1,"accepted"

@@ -24,53 +24,29 @@ non-abstaining hypothesis must cite an exact span in a versioned source field.
 }
 \examples{
 fields <- data.frame(
-  provider_id = "fixture",
-  release_id = "fixture-1",
-  source_id = "fixture-records",
-  source_row_id = "record-1",
+  provider_id = "fixture", release_id = "fixture-1",
+  source_id = "fixture-records", source_row_id = "record-1",
   field_path = "mechanism",
   value = "Reduced fibrillin changes extracellular matrix signaling.",
   stringsAsFactors = FALSE
 )
-hypotheses <- data.frame(
-  hypothesis_id = "hypothesis-1",
-  run_id = "run-1",
-  case_id = "case-1",
-  target_type = "gene",
-  candidate_id = "HGNC:3603",
+hypothesis <- ducksemantics_hypothesis(
+  hypothesis_id = "hypothesis-1", run_id = "run-1", case_id = "case-1",
+  target_type = "gene", candidate_id = "HGNC:3603",
   proposal_type = "candidate",
-  claim_text = "Reduced fibrillin changes extracellular matrix signaling.",
-  inheritance_id = "HP:0000006",
+  claim_text = "FBN1 disruption alters extracellular matrix signaling.",
   mechanism_text = "Reduced extracellular matrix signaling",
-  proposer_type = "model",
-  proposer_id = "fixture-model",
-  proposer_version = "1",
-  confidence = 0.9,
-  judgment = "supports",
-  missing_evidence = NA_character_,
-  contradiction = NA_character_,
-  review_status = "accepted",
-  reviewer_id = "reviewer-1",
+  proposer_type = "model", proposer_id = "fixture-model",
+  proposer_version = "1", confidence = 0.9, judgment = "supports",
+  review_status = "accepted", reviewer_id = "reviewer-1",
   reviewed_at = as.POSIXct("2026-01-02", tz = "UTC"),
-  review_note = "Source span supports the proposed mechanism.",
-  supersedes_id = NA_character_,
-  recorded_at = as.POSIXct("2026-01-01", tz = "UTC"),
-  stringsAsFactors = FALSE
+  review_note = "The exact source span supports the proposed mechanism.",
+  recorded_at = as.POSIXct("2026-01-01", tz = "UTC")
 )
-sources <- data.frame(
-  hypothesis_id = "hypothesis-1",
-  provider_id = "fixture",
-  release_id = "fixture-1",
-  source_id = "fixture-records",
-  source_relation = "fixture_mechanisms",
-  source_record_id = "record-1",
-  source_field = "mechanism",
-  start_offset = 0L,
-  end_offset = 57L,
-  source_span = fields$value,
-  citation = "fixture:record-1",
-  evidence_role = "support",
-  stringsAsFactors = FALSE
+source <- ducksemantics_hypothesis_source(
+  "hypothesis-1", fields, "fixture_mechanisms", "mechanism",
+  text = "fibrillin changes extracellular matrix",
+  citation = "fixture:record-1"
 )
-ducksemantics_hypotheses(hypotheses, sources, fields)
+ducksemantics_hypotheses(hypothesis, source, fields)
 }

@@ -14,55 +14,31 @@
 #'
 #' @examples
 #' fields <- data.frame(
-#'   provider_id = "fixture",
-#'   release_id = "fixture-1",
-#'   source_id = "fixture-records",
-#'   source_row_id = "record-1",
+#'   provider_id = "fixture", release_id = "fixture-1",
+#'   source_id = "fixture-records", source_row_id = "record-1",
 #'   field_path = "mechanism",
 #'   value = "Reduced fibrillin changes extracellular matrix signaling.",
 #'   stringsAsFactors = FALSE
 #' )
-#' hypotheses <- data.frame(
-#'   hypothesis_id = "hypothesis-1",
-#'   run_id = "run-1",
-#'   case_id = "case-1",
-#'   target_type = "gene",
-#'   candidate_id = "HGNC:3603",
+#' hypothesis <- ducksemantics_hypothesis(
+#'   hypothesis_id = "hypothesis-1", run_id = "run-1", case_id = "case-1",
+#'   target_type = "gene", candidate_id = "HGNC:3603",
 #'   proposal_type = "candidate",
-#'   claim_text = "Reduced fibrillin changes extracellular matrix signaling.",
-#'   inheritance_id = "HP:0000006",
+#'   claim_text = "FBN1 disruption alters extracellular matrix signaling.",
 #'   mechanism_text = "Reduced extracellular matrix signaling",
-#'   proposer_type = "model",
-#'   proposer_id = "fixture-model",
-#'   proposer_version = "1",
-#'   confidence = 0.9,
-#'   judgment = "supports",
-#'   missing_evidence = NA_character_,
-#'   contradiction = NA_character_,
-#'   review_status = "accepted",
-#'   reviewer_id = "reviewer-1",
+#'   proposer_type = "model", proposer_id = "fixture-model",
+#'   proposer_version = "1", confidence = 0.9, judgment = "supports",
+#'   review_status = "accepted", reviewer_id = "reviewer-1",
 #'   reviewed_at = as.POSIXct("2026-01-02", tz = "UTC"),
-#'   review_note = "Source span supports the proposed mechanism.",
-#'   supersedes_id = NA_character_,
-#'   recorded_at = as.POSIXct("2026-01-01", tz = "UTC"),
-#'   stringsAsFactors = FALSE
+#'   review_note = "The exact source span supports the proposed mechanism.",
+#'   recorded_at = as.POSIXct("2026-01-01", tz = "UTC")
 #' )
-#' sources <- data.frame(
-#'   hypothesis_id = "hypothesis-1",
-#'   provider_id = "fixture",
-#'   release_id = "fixture-1",
-#'   source_id = "fixture-records",
-#'   source_relation = "fixture_mechanisms",
-#'   source_record_id = "record-1",
-#'   source_field = "mechanism",
-#'   start_offset = 0L,
-#'   end_offset = 57L,
-#'   source_span = fields$value,
-#'   citation = "fixture:record-1",
-#'   evidence_role = "support",
-#'   stringsAsFactors = FALSE
+#' source <- ducksemantics_hypothesis_source(
+#'   "hypothesis-1", fields, "fixture_mechanisms", "mechanism",
+#'   text = "fibrillin changes extracellular matrix",
+#'   citation = "fixture:record-1"
 #' )
-#' ducksemantics_hypotheses(hypotheses, sources, fields)
+#' ducksemantics_hypotheses(hypothesis, source, fields)
 ducksemantics_hypotheses <- function(hypotheses, sources, source_fields) {
   hypotheses <- .ducksemantics_validate_hypothesis_rows(hypotheses)
   sources <- .ducksemantics_validate_hypothesis_sources(
@@ -118,16 +94,193 @@ ducksemantics_hypotheses <- function(hypotheses, sources, source_fields) {
   "end_offset", "source_span", "citation", "evidence_role"
 )
 
+#' Construct hypothesis observations
+#'
+#' Constructs the exact typed relation consumed by
+#' [ducksemantics_hypotheses()]. Semantic fields stay explicit; only fields
+#' whose absence is meaningful default to typed missing values.
+#'
+#' @param hypothesis_id,run_id,case_id,target_type,candidate_id Character
+#'   identity columns.
+#' @param proposal_type,claim_text,proposer_type,proposer_id,proposer_version
+#'   Character proposal columns.
+#' @param judgment,review_status Character judgment and review states.
+#' @param recorded_at POSIXct observation timestamp.
+#' @param confidence Numeric confidence, or `NA` for abstention.
+#' @param inheritance_id,mechanism_text,missing_evidence,contradiction Optional
+#'   evidence descriptions.
+#' @param reviewer_id,review_note,supersedes_id Optional review metadata.
+#' @param reviewed_at POSIXct review timestamp, or missing when unreviewed.
+#' @return A validated 22-column hypothesis relation.
+#' @export
+#'
+#' @examples
+#' ducksemantics_hypothesis(
+#'   hypothesis_id = "h1", run_id = "run-1", case_id = "case-1",
+#'   target_type = "gene", candidate_id = "HGNC:3603",
+#'   proposal_type = "candidate", claim_text = "FBN1 causes Marfan syndrome.",
+#'   mechanism_text = "Defective fibrillin-1", proposer_type = "human",
+#'   proposer_id = "author", proposer_version = "1", confidence = 0.9,
+#'   judgment = "supports", review_status = "accepted",
+#'   reviewer_id = "reviewer",
+#'   reviewed_at = as.POSIXct("2026-01-02", tz = "UTC"),
+#'   recorded_at = as.POSIXct("2026-01-01", tz = "UTC")
+#' )
+ducksemantics_hypothesis <- function(
+  hypothesis_id, run_id, case_id, target_type, candidate_id, proposal_type,
+  claim_text, proposer_type, proposer_id, proposer_version, judgment,
+  review_status, recorded_at, confidence = NA_real_,
+  inheritance_id = NA_character_, mechanism_text = NA_character_,
+  missing_evidence = NA_character_, contradiction = NA_character_,
+  reviewer_id = NA_character_,
+  reviewed_at = .POSIXct(NA_real_, tz = "UTC"),
+  review_note = NA_character_, supersedes_id = NA_character_
+) {
+  .ducksemantics_validate_hypothesis_rows(data.frame(
+    hypothesis_id = hypothesis_id,
+    run_id = run_id,
+    case_id = case_id,
+    target_type = target_type,
+    candidate_id = candidate_id,
+    proposal_type = proposal_type,
+    claim_text = claim_text,
+    inheritance_id = inheritance_id,
+    mechanism_text = mechanism_text,
+    proposer_type = proposer_type,
+    proposer_id = proposer_id,
+    proposer_version = proposer_version,
+    confidence = confidence,
+    judgment = judgment,
+    missing_evidence = missing_evidence,
+    contradiction = contradiction,
+    review_status = review_status,
+    reviewer_id = reviewer_id,
+    reviewed_at = reviewed_at,
+    review_note = review_note,
+    supersedes_id = supersedes_id,
+    recorded_at = recorded_at,
+    stringsAsFactors = FALSE
+  ))
+}
+
+#' Construct an exact hypothesis source span
+#'
+#' Selects one versioned source field and locates a unique fixed substring.
+#' Character offsets are zero-based and half-open. The returned span is copied from the
+#' source relation; caller text cannot replace source bytes.
+#'
+#' @param hypothesis_id Hypothesis identity.
+#' @param source_fields Versioned source-field relation, scoped to one source
+#'   release when field paths repeat across releases.
+#' @param source_relation Name of the source relation.
+#' @param field_path Field path to cite.
+#' @param text Unique fixed substring to cite. `NULL` cites the complete field.
+#' @param citation Citation attached to the source receipt.
+#' @param evidence_role One of `support`, `contradiction`, or `context`.
+#' @param source_row_id Optional source-row identity used to disambiguate a
+#'   repeated field path.
+#' @return One row with the exact hypothesis-source schema.
+#' @export
+#'
+#' @examples
+#' fields <- data.frame(
+#'   provider_id = "fixture", release_id = "fixture-1",
+#'   source_id = "fixture-records", source_row_id = "record-1",
+#'   field_path = "mechanism", value = "FBN1 causes Marfan syndrome.",
+#'   stringsAsFactors = FALSE
+#' )
+#' ducksemantics_hypothesis_source(
+#'   "h1", fields, "fixture_mechanisms", "mechanism",
+#'   text = "causes Marfan", citation = "fixture:record-1"
+#' )
+ducksemantics_hypothesis_source <- function(
+  hypothesis_id, source_fields, source_relation, field_path, text = NULL,
+  citation, evidence_role = c("support", "contradiction", "context"),
+  source_row_id = NULL
+) {
+  hypothesis_id <- ducksemantics_require_text(hypothesis_id, "hypothesis_id")
+  source_relation <- ducksemantics_require_text(source_relation, "source_relation")
+  field_path <- ducksemantics_require_text(field_path, "field_path")
+  citation <- ducksemantics_require_text(citation, "citation")
+  evidence_role <- match.arg(evidence_role)
+  if (!is.null(source_row_id)) {
+    source_row_id <- ducksemantics_require_text(source_row_id, "source_row_id")
+  }
+
+  columns <- c(
+    "provider_id", "release_id", "source_id", "source_row_id",
+    "field_path", "value"
+  )
+  fields <- .ducksemantics_require_relation_columns(
+    source_fields, columns, "source_fields", allow_extra = TRUE
+  )
+  .ducksemantics_require_character_columns(fields, columns, "source_fields")
+  selected <- !is.na(fields$field_path) & fields$field_path == field_path
+  if (!is.null(source_row_id)) {
+    selected <- selected & !is.na(fields$source_row_id) &
+      fields$source_row_id == source_row_id
+  }
+  if (sum(selected) != 1L) {
+    stop("field_path must resolve to exactly one versioned source field",
+         call. = FALSE)
+  }
+  field <- fields[selected, , drop = FALSE]
+  if (!all(vapply(field, .ducksemantics_nonblank, logical(1)))) {
+    stop("the selected source field must contain nonblank text and receipt keys",
+         call. = FALSE)
+  }
+  value <- field$value[[1L]]
+
+  if (is.null(text)) {
+    start_offset <- 0L
+    end_offset <- nchar(value, type = "chars")
+    source_span <- value
+  } else {
+    text <- ducksemantics_require_text(text, "text")
+    start <- regexpr(text, value, fixed = TRUE)[[1L]]
+    repeated <- start > 0L &&
+      grepl(text, substring(value, start + 1L), fixed = TRUE)
+    if (start < 1L || repeated) {
+      stop("text must occur exactly once in the selected source field",
+           call. = FALSE)
+    }
+    start_offset <- as.integer(start - 1L)
+    end_offset <- as.integer(start_offset + nchar(text, type = "chars"))
+    source_span <- substring(value, start_offset + 1L, end_offset)
+  }
+
+  data.frame(
+    hypothesis_id = hypothesis_id,
+    provider_id = field$provider_id,
+    release_id = field$release_id,
+    source_id = field$source_id,
+    source_relation = source_relation,
+    source_record_id = field$source_row_id,
+    source_field = field$field_path,
+    start_offset = start_offset,
+    end_offset = end_offset,
+    source_span = source_span,
+    citation = citation,
+    evidence_role = evidence_role,
+    stringsAsFactors = FALSE
+  )
+}
+
 .ducksemantics_nonblank <- function(x) {
   !is.na(x) & nzchar(trimws(x))
 }
 
-.ducksemantics_require_relation_columns <- function(x, columns, name) {
+.ducksemantics_require_relation_columns <- function(
+  x, columns, name, allow_extra = FALSE
+) {
   if (!is.data.frame(x)) {
     stop(name, " must be a data frame", call. = FALSE)
   }
+  if (anyDuplicated(names(x))) {
+    stop(name, " column names must be unique", call. = FALSE)
+  }
   missing <- setdiff(columns, names(x))
-  extra <- setdiff(names(x), columns)
+  extra <- if (isTRUE(allow_extra)) character() else setdiff(names(x), columns)
   if (length(missing) > 0L || length(extra) > 0L) {
     details <- c(
       if (length(missing) > 0L) paste0("missing: ", paste(missing, collapse = ", ")),
@@ -334,7 +487,8 @@ ducksemantics_hypotheses <- function(hypotheses, sources, source_fields) {
   source_fields <- .ducksemantics_require_relation_columns(
     source_fields,
     c("provider_id", "release_id", "source_id", "source_row_id", "field_path", "value"),
-    "source_fields"
+    "source_fields",
+    allow_extra = TRUE
   )
   .ducksemantics_require_character_columns(
     source_fields,

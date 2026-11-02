@@ -67,14 +67,21 @@ ducksemantics_source_release_select <- function(
 #'
 #' @param path Local source file. No network access is performed.
 #' @param release One selected row of [ducksemantics_source_release_catalog()].
-#' @param source_id Exact source artifact identity within the release.
-#' @param source_uri Pinned public source URI for the artifact.
-#' @param sha256 Expected SHA-256 of the supplied bytes.
+#' @param source_id Exact artifact identity within the release. Defaults to
+#'   `release$source_id`.
+#' @param source_uri Pinned public source URI. Defaults to `release$source_uri`.
+#' @param sha256 Expected lowercase SHA-256 of the supplied bytes. Defaults to
+#'   `release$sha256`.
 #' @return A list of release, artifact, term, synonym, mapping, obsolescence,
 #'   edge, and exact tag relations, all carrying provider/release/source keys.
 #' @export
-ducksemantics_mondo_import <- function(path, release, source_id, source_uri, sha256) {
-  artifact <- ducksemantics_source_artifact(path, release, source_id, source_uri, sha256)
+ducksemantics_mondo_import <- function(
+  path, release, source_id = NULL, source_uri = NULL, sha256 = NULL
+) {
+  artifact <- ducksemantics_source_artifact(
+    path, release, source_id, source_uri, sha256
+  )
+  source_id <- artifact$source_id[[1L]]
   graph <- ducksemantics_read_obo(path, "MONDO", source_id, include_obsolete = TRUE)
   ids <- graph$nodes$node_id[startsWith(graph$nodes$node_id, "MONDO:")]
   if (anyDuplicated(ids)) stop("Mondo identifiers must be unique.", call. = FALSE)
@@ -115,8 +122,13 @@ ducksemantics_mondo_import <- function(path, release, source_id, source_uri, sha
 #' @return A list of release, artifact, record, and field relations. Records and
 #'   fields carry provider, release, receipt, and source identities.
 #' @export
-ducksemantics_dismech_import <- function(path, release, source_id, source_uri, sha256) {
-  artifact <- ducksemantics_source_artifact(path, release, source_id, source_uri, sha256)
+ducksemantics_dismech_import <- function(
+  path, release, source_id = NULL, source_uri = NULL, sha256 = NULL
+) {
+  artifact <- ducksemantics_source_artifact(
+    path, release, source_id, source_uri, sha256
+  )
+  source_id <- artifact$source_id[[1L]]
   record <- yaml::yaml.load_file(path, handlers = list(seq = as.list), eval.expr = FALSE)
   if (!is.list(record)) stop("Expected a DisMech YAML mapping.", call. = FALSE)
   name <- ducksemantics_require_text(record$name, "DisMech disease name")
@@ -149,9 +161,9 @@ ducksemantics_source_artifact <- function(path, release, source_id, source_uri, 
   release <- ducksemantics_source_release_catalog(release)
   if (nrow(release) != 1L) stop("Select exactly one source release.", call. = FALSE)
   path <- normalizePath(ducksemantics_require_text(path, "path"), mustWork = TRUE)
-  source_id <- ducksemantics_require_text(source_id, "source_id")
-  source_uri <- ducksemantics_require_text(source_uri, "source_uri")
-  sha256 <- ducksemantics_require_text(sha256, "sha256")
+  source_id <- ducksemantics_source_receipt_value(source_id, release, "source_id")
+  source_uri <- ducksemantics_source_receipt_value(source_uri, release, "source_uri")
+  sha256 <- ducksemantics_source_receipt_value(sha256, release, "sha256")
   if (!grepl("^[0-9a-f]{64}$", sha256)) stop("Expected a lowercase SHA-256 digest.", call. = FALSE)
   if (!identical(digest::digest(file = path, algo = "sha256"), sha256)) {
     stop("Source artifact SHA-256 does not match its receipt.", call. = FALSE)
@@ -159,6 +171,17 @@ ducksemantics_source_artifact <- function(path, release, source_id, source_uri, 
   data.frame(release[c("provider_id", "release_id", "available_at", "receipt_id")],
              source_id = source_id, source_uri = source_uri, sha256 = sha256,
              stringsAsFactors = FALSE)
+}
+
+ducksemantics_source_receipt_value <- function(value, release, field) {
+  if (is.null(value)) {
+    if (!(field %in% names(release))) {
+      stop("release must contain `", field, "` when it is not supplied",
+           call. = FALSE)
+    }
+    value <- release[[field]][[1L]]
+  }
+  ducksemantics_require_text(value, field)
 }
 
 ducksemantics_source_rows <- function(rows, artifact) {

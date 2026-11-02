@@ -31,8 +31,14 @@ local({
   invalid$available_at <- as.character(invalid$available_at)
   expect_error(ducksemantics::ducksemantics_source_release_catalog(invalid), "POSIXct")
 
-  mondo <- ducksemantics::ducksemantics_mondo_import(fixture("mondo-subset.obo"),
-    mondo_release, mondo_release$source_id, mondo_release$source_uri, mondo_release$sha256)
+  mondo <- ducksemantics::ducksemantics_mondo_import(
+    fixture("mondo-subset.obo"), mondo_release
+  )
+  mondo_explicit <- ducksemantics::ducksemantics_mondo_import(
+    fixture("mondo-subset.obo"), mondo_release,
+    mondo_release$source_id, mondo_release$source_uri, mondo_release$sha256
+  )
+  expect_equal(mondo$artifact, mondo_explicit$artifact)
   expect_equal(mondo$terms$node_id, c("MONDO:0007947", "MONDO:0000002", "MONDO:0009299"))
   expect_equal(mondo$terms$is_obsolete, c(FALSE, TRUE, FALSE))
   expect_equal(mondo$terms$label[[1L]], "Marfan syndrome")
@@ -66,8 +72,15 @@ local({
 
   dismech_release <- ducksemantics::ducksemantics_source_release_select(catalog, "DisMech",
     release_id = "fac61860115b1fdb194de4f4cacef3a8f6a398af")
-  dismech <- ducksemantics::ducksemantics_dismech_import(fixture("dismech-marfan.yaml"),
-    dismech_release, dismech_release$source_id, dismech_release$source_uri, dismech_release$sha256)
+  dismech <- ducksemantics::ducksemantics_dismech_import(
+    fixture("dismech-marfan.yaml"), dismech_release
+  )
+  dismech_explicit <- ducksemantics::ducksemantics_dismech_import(
+    fixture("dismech-marfan.yaml"), dismech_release,
+    dismech_release$source_id, dismech_release$source_uri,
+    dismech_release$sha256
+  )
+  expect_equal(dismech$artifact, dismech_explicit$artifact)
   expect_equal(dismech$records$name, "Marfan Syndrome")
   expect_equal(dismech$records$yaml_text, rawToChar(readBin(fixture("dismech-marfan.yaml"),
     "raw", n = file.info(fixture("dismech-marfan.yaml"))$size)))
