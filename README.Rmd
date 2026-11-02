@@ -165,7 +165,12 @@ SELECT text_id,
        typeof(embedding) AS type,
        len(embedding) AS dimensions,
        sqrt(list_dot_product(embedding, embedding)) AS norm,
-       list_transform(embedding[1:4], x -> round(x, 4))::VARCHAR AS first_values
+       list_value(
+         round(embedding[1], 4),
+         round(embedding[2], 4),
+         round(embedding[3], 4),
+         round(embedding[4], 4)
+       )::VARCHAR AS first_values
 FROM short_texts
 ORDER BY text_id;
 ```
