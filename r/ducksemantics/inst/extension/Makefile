@@ -222,6 +222,22 @@ include $(CI_TOOLS_MAKEFILES)/c_cpp.Makefile
 override TEST_RUNNER_RELEASE = $(MAKE) native-tests DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/release/$(EXTENSION).duckdb_extension
 override TEST_RUNNER_DEBUG = $(MAKE) native-tests DUCKDB=$(CURDIR)/configure/cli/duckdb TEST_EXTENSION=build/debug/$(EXTENSION).duckdb_extension
 
+# Distribution tests reuse one workspace inside and outside a container. Drop a
+# CMake cache only when its recorded source path belongs to the other host.
+.PHONY: clean_foreign_cmake_release clean_foreign_cmake_debug
+clean_foreign_cmake_release:
+	@if test -f cmake_build/release/CMakeCache.txt && \
+	   ! grep -Fqx 'CMAKE_HOME_DIRECTORY:INTERNAL=$(CURDIR)' cmake_build/release/CMakeCache.txt; then \
+		rm -rf cmake_build/release; \
+	fi
+clean_foreign_cmake_debug:
+	@if test -f cmake_build/debug/CMakeCache.txt && \
+	   ! grep -Fqx 'CMAKE_HOME_DIRECTORY:INTERNAL=$(CURDIR)' cmake_build/debug/CMakeCache.txt; then \
+		rm -rf cmake_build/debug; \
+	fi
+build_extension_library_release: clean_foreign_cmake_release
+build_extension_library_debug: clean_foreign_cmake_debug
+
 .PHONY: configure configure_cli distribution-directory release debug test_release test_debug
 distribution-directory:
 	@mkdir -p configure
