@@ -41,20 +41,45 @@ bool lfm2_cache_fork(lfm2_cache *out, const lfm2_cache *source, char *error);
 void lfm2_cache_free(lfm2_cache *cache);
 
 typedef struct lfm2_state lfm2_state;
+/* Monotonic timings. total_seconds spans the call from prompt tokenization
+ * (lfm2_generate*) or the initial vocabulary projection (lfm2_decode) through
+ * detokenization; model loading is excluded. prefill_seconds covers the prompt
+ * forward passes plus the initial projection; decode_seconds covers the decode
+ * loop only. decode_tokens counts decode forward passes: the final emitted id
+ * stays pending at a token-budget stop, giving count - 1 forwards; terminal
+ * stops give count forwards.
+ * A prompt runs as prefill_batches causal chunks of at most prefill_batch_size
+ * tokens; both are zero for lfm2_decode. */
 typedef struct lfm2_generation {
     int32_t *ids;
     float *margins;
     char *text;
-    size_t count, bytes, prompt_tokens;
-    double prefill_seconds, decode_seconds;
+    size_t count, bytes, prompt_tokens, decode_tokens;
+    size_t prefill_batches, prefill_batch_size;
+    double prefill_seconds, decode_seconds, total_seconds;
     int32_t terminal_id;
     float terminal_margin;
     bool stopped;
 } lfm2_generation;
 lfm2_state *lfm2_state_new(const lfm2_model *model, size_t capacity, char *error);
 lfm2_state *lfm2_state_fork(const lfm2_state *source, char *error);
+/* Deep-copy the cache into an empty caller-owned destination; free it once. */
+bool lfm2_state_cache_snapshot(lfm2_cache *out, const lfm2_state *state,
+                               char *error);
 void lfm2_state_free(lfm2_state *state);
+/* Prompt tokens advance the cache causally at absolute positions. Invalid ids,
+ * capacity or batch size are rejected before the cache changes; after a later
+ * failure the state is unusable and must be freed. The batched route runs
+ * chunks of batch_size tokens (1..LFM2_PREFILL_MAX_BATCH) through each layer
+ * with expert-grouped MoE and matches the per-token scalar route exactly.
+ * lfm2_prefill uses
+ * LFM2_PREFILL_BATCH. */
+#define LFM2_PREFILL_MAX_BATCH 64
+#define LFM2_PREFILL_BATCH 16
 bool lfm2_prefill(lfm2_state *state, const int32_t *ids, size_t count, char *error);
+bool lfm2_prefill_scalar(lfm2_state *state, const int32_t *ids, size_t count, char *error);
+bool lfm2_prefill_batch(lfm2_state *state, const int32_t *ids, size_t count,
+                        size_t batch_size, char *error);
 bool lfm2_prompt_ids(const lfm2_model *model, const char *text, size_t bytes, bool bos,
                      int32_t **ids, size_t *count, char *error);
 bool lfm2_state_logits(lfm2_state *state, const int32_t *ids, size_t count, float *out, char *error);
@@ -62,6 +87,8 @@ bool lfm2_state_logits(lfm2_state *state, const int32_t *ids, size_t count, floa
 bool lfm2_decode(lfm2_state *state, size_t max_tokens, lfm2_generation *out, char *error);
 bool lfm2_generate(const lfm2_model *model, const char *prompt, size_t bytes,
                    size_t max_tokens, lfm2_generation *out, char *error);
+bool lfm2_generate_batch(const lfm2_model *model, const char *prompt, size_t bytes,
+                         size_t max_tokens, size_t batch_size, lfm2_generation *out, char *error);
 void lfm2_generation_free(lfm2_generation *out);
 
 void lfm2_rmsnorm(const float *x, const float *gain, size_t n, float epsilon, float *out);

@@ -23,6 +23,19 @@ if (requireNamespace("duckdb", quietly = TRUE)) {
       "FLOAT[][]")
     expect_true(DBI::dbGetQuery(conn,
       "SELECT semantic_generate(NULL, 'Hello', 8) IS NULL AS missing")$missing)
+    expect_true(DBI::dbGetQuery(conn,
+      "SELECT semantic_generate_stats(NULL, 'Hello', 8) IS NULL AS missing")$missing)
+    expect_true(DBI::dbGetQuery(conn,
+      "SELECT semantic_generate_stats('unused', 'Hello', 8, NULL::INTEGER) IS NULL AS missing")$missing)
+    expect_equal(DBI::dbGetQuery(conn,
+      "SELECT typeof((semantic_generate_stats(NULL, 'Hello', 8)).prefill_seconds) AS type")$type,
+      "DOUBLE")
+    expect_equal(DBI::dbGetQuery(conn,
+      "SELECT typeof((semantic_generate_stats(NULL, 'Hello', 8)).decode_tokens) AS type")$type,
+      "UBIGINT")
+    expect_error(DBI::dbGetQuery(conn,
+      "SELECT semantic_generate_stats('unused', 'Hello', 8, 65)"),
+      "prefill batch size out of bounds")
     tokenizer <- system.file("extdata", "tokenizer_gemma.gguf", package = "ducksemantics",
                              mustWork = TRUE)
     tokens <- DBI::dbGetQuery(conn, paste0(

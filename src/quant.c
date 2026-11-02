@@ -454,25 +454,13 @@ bool quant_bebel_quantize(const float *x, uint64_t n, quant_bebel_block *scratch
     return true;
 }
 
+#if !defined(__SSE2__)
 static int bebel_int_dot(const int8_t *q, const int8_t *x, unsigned n) {
-#if defined(__SSE2__)
-    __m128i sum = _mm_setzero_si128(), zero = _mm_setzero_si128();
-    for (unsigned j = 0; j < n; j += 16) {
-        __m128i a = _mm_loadu_si128((const __m128i *)(q + j));
-        __m128i b = _mm_loadu_si128((const __m128i *)(x + j));
-        __m128i sa = _mm_cmpgt_epi8(zero, a), sb = _mm_cmpgt_epi8(zero, b);
-        sum = _mm_add_epi32(sum, _mm_madd_epi16(_mm_unpacklo_epi8(a, sa), _mm_unpacklo_epi8(b, sb)));
-        sum = _mm_add_epi32(sum, _mm_madd_epi16(_mm_unpackhi_epi8(a, sa), _mm_unpackhi_epi8(b, sb)));
-    }
-    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2)));
-    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, _MM_SHUFFLE(2, 3, 0, 1)));
-    return _mm_cvtsi128_si32(sum);
-#else
     int sum = 0;
     for (unsigned j = 0; j < n; j++) sum += q[j] * x[j];
     return sum;
-#endif
 }
+#endif
 
 #if defined(__SSE2__)
 static void q4_scale_min(const uint8_t *s, unsigned j, int *scale, int *min) {
@@ -642,6 +630,10 @@ bool quant_bebel_matmul(const quant_view *v, const float *x, uint64_t tokens,
         const uint8_t *p = v->data + row * v->row_stride;
         for (uint64_t t = 0; t < tokens; t++) out[t * v->rows + row] = 0;
         for (uint64_t b = 0; b < nb; b++, p += bytes) {
+#if defined(__SSE2__)
+            for (uint64_t t = 0; t < tokens; t++)
+                out[t * v->rows + row] += bebel_packed_dot(v->type, p, scratch + t * nb + b);
+#else
             int8_t q[256];
             int sc[16], mn[16], group;
             float d, dm;
@@ -658,6 +650,7 @@ bool quant_bebel_matmul(const quant_view *v, const float *x, uint64_t tokens,
                     a->scale * (d * sd - dm * sm) : a->scale * (d * sd);
                 out[t * v->rows + row] += value;
             }
+#endif
         }
     }
     return true;

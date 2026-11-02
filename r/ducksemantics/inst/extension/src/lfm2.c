@@ -492,18 +492,22 @@ lfm2_state *lfm2_state_fork(const lfm2_state *source, char *error) {
     return s;
 }
 
+bool lfm2_state_cache_snapshot(lfm2_cache *out, const lfm2_state *state,
+                               char *error) {
+    return lfm2_cache_fork(out, &state->cache, error);
+}
+
 static bool project(lfm2_state *s, const quant_view *w, const float *x,
                      size_t first, size_t rows, float *out, char *error) {
     return quant_bebel_matvec(w, x, true, first, rows, out, s->scratch, 7168 / 256, error);
 }
 
-static bool moe_ffn(lfm2_state *s, const struct lfm2_layer *l, const float *x,
-                     float *gate, float *up, float *down, float *out, char *error) {
-    float scores[32], ranked[32]; unsigned order[32];
-    if (!project(s, &l->router, x, 0, 32, scores, error)) return false;
+/* Sigmoid router scores in place; the top four by biased score in selection order. */
+static bool route(float *scores, const float *bias, unsigned *experts, float *weights, char *error) {
+    float ranked[32]; unsigned order[32];
     for (unsigned e = 0; e < 32; e++) {
         scores[e] = 1.f / (1.f + expf(-scores[e]));
-        ranked[e] = scores[e] + l->bias_values[e]; order[e] = e;
+        ranked[e] = scores[e] + bias[e]; order[e] = e;
         if (!isfinite(ranked[e])) return fail(error, "non-finite MoE router score");
     }
     for (unsigned i = 1; i < 32; i++) {
@@ -514,9 +518,18 @@ static bool moe_ffn(lfm2_state *s, const struct lfm2_layer *l, const float *x,
     float denom = 0;
     for (unsigned k = 0; k < 4; k++) denom += scores[order[k]];
     denom += 1e-6f;
+    for (unsigned k = 0; k < 4; k++) { experts[k] = order[k]; weights[k] = scores[order[k]] / denom; }
+    return true;
+}
+
+static bool moe_ffn(lfm2_state *s, const struct lfm2_layer *l, const float *x,
+                     float *gate, float *up, float *down, float *out, char *error) {
+    float scores[32], weights[4]; unsigned experts[4];
+    if (!project(s, &l->router, x, 0, 32, scores, error) ||
+        !route(scores, l->bias_values, experts, weights, error)) return false;
     memset(out, 0, 2048 * sizeof(float));
     for (unsigned k = 0; k < 4; k++) {
-        unsigned e = order[k]; float weight = scores[e] / denom;
+        unsigned e = experts[k]; float weight = weights[k];
         if (!project(s, &l->gate, x, e * 1792, 1792, gate, error) ||
             !project(s, &l->up, x, e * 1792, 1792, up, error)) return false;
         for (size_t j = 0; j < 1792; j++) gate[j] = (gate[j] / (1.f + expf(-gate[j]))) * up[j];
@@ -524,6 +537,33 @@ static bool moe_ffn(lfm2_state *s, const struct lfm2_layer *l, const float *x,
         for (size_t j = 0; j < 2048; j++) out[j] += weight * down[j];
     }
     return true;
+}
+
+/* Normalize and rotate q/k heads at absolute position pos, append k/v to the
+ * layer cache and attend causally over positions 0..pos. */
+static void attend(lfm2_state *s, size_t layer, float *q, float *k, const float *v,
+                   size_t pos, float *att) {
+    const struct lfm2_layer *l = s->model->layers + layer;
+    for (size_t j = 0; j < 32; j++) {
+        lfm2_rmsnorm(q + j * 64, l->q_gain, 64, 1e-5f, q + j * 64);
+        lfm2_rope(q + j * 64, 64, pos, 5000000.f);
+    }
+    for (size_t j = 0; j < 8; j++) {
+        lfm2_rmsnorm(k + j * 64, l->k_gain, 64, 1e-5f, k + j * 64);
+        lfm2_rope(k + j * 64, 64, pos, 5000000.f);
+    }
+    float *keys = s->cache.k[layer], *values = s->cache.v[layer];
+    memcpy(keys + pos * 512, k, 512 * sizeof(float));
+    memcpy(values + pos * 512, v, 512 * sizeof(float));
+    memset(att, 0, 2048 * sizeof(float));
+    for (size_t head = 0; head < 32; head++) {
+        size_t kh = head / 4;
+        for (size_t t = 0; t <= pos; t++)
+            s->scores[t] = lfm2_dot(q + head * 64, keys + t * 512 + kh * 64, 64) * .125f;
+        softmax(s->scores, pos + 1);
+        for (size_t t = 0; t <= pos; t++)
+            for (size_t j = 0; j < 64; j++) att[head * 64 + j] += s->scores[t] * values[t * 512 + kh * 64 + j];
+    }
 }
 
 static bool forward_one(lfm2_state *s, int32_t token, char *error) {
@@ -541,25 +581,7 @@ static bool forward_one(lfm2_state *s, int32_t token, char *error) {
             float *q = proj, *k = q + 2048, *v = k + 512;
             if (!project(s, &l->q, norm, 0, 2048, q, error) ||
                 !project(s, &l->k, norm, 0, 512, k, error) || !project(s, &l->v, norm, 0, 512, v, error)) return false;
-            for (size_t j = 0; j < 32; j++) {
-                lfm2_rmsnorm(q + j * 64, l->q_gain, 64, 1e-5f, q + j * 64);
-                lfm2_rope(q + j * 64, 64, pos, 5000000.f);
-            }
-            for (size_t j = 0; j < 8; j++) {
-                lfm2_rmsnorm(k + j * 64, l->k_gain, 64, 1e-5f, k + j * 64);
-                lfm2_rope(k + j * 64, 64, pos, 5000000.f);
-            }
-            memcpy(s->cache.k[i] + pos * 512, k, 512 * sizeof(float));
-            memcpy(s->cache.v[i] + pos * 512, v, 512 * sizeof(float));
-            memset(att, 0, 2048 * sizeof(float));
-            for (size_t head = 0; head < 32; head++) {
-                size_t kh = head / 4;
-                for (size_t t = 0; t <= pos; t++)
-                    s->scores[t] = lfm2_dot(q + head * 64, s->cache.k[i] + t * 512 + kh * 64, 64) * .125f;
-                softmax(s->scores, pos + 1);
-                for (size_t t = 0; t <= pos; t++)
-                    for (size_t j = 0; j < 64; j++) att[head * 64 + j] += s->scores[t] * s->cache.v[i][t * 512 + kh * 64 + j];
-            }
+            attend(s, i, q, k, v, pos, att);
         } else {
             if (!project(s, &l->in_proj, norm, 0, 6144, proj, error)) return false;
             for (size_t j = 0; j < 2048; j++) bx[j] = proj[j] * proj[4096 + j];
@@ -581,11 +603,149 @@ static bool forward_one(lfm2_state *s, int32_t token, char *error) {
     return true;
 }
 
-bool lfm2_prefill(lfm2_state *s, const int32_t *ids, size_t count, char *error) {
+static bool prefill_admit(const lfm2_state *s, const int32_t *ids, size_t count, char *error) {
     if (count > s->cache.capacity - s->cache.position) return fail(error, "LFM2 context exceeds workspace limit");
     for (size_t i = 0; i < count; i++) if (ids[i] < 0 || ids[i] >= 128000) return fail(error, "LFM2 token id outside vocabulary");
+    return true;
+}
+
+bool lfm2_prefill_scalar(lfm2_state *s, const int32_t *ids, size_t count, char *error) {
+    if (!prefill_admit(s, ids, count, error)) return false;
     for (size_t i = 0; i < count; i++) if (!forward_one(s, ids[i], error)) return false;
     return true;
+}
+
+/* Token-major chunk workspace, sized for at most `tokens` rows. */
+struct prefill_work {
+    float *h, *norm, *op, *proj, *bx, *att, *gate, *up, *slots, *router, *weights;
+    unsigned *experts;
+    size_t *members;
+    quant_bebel_block *scratch;
+};
+
+static void prefill_work_free(struct prefill_work *w) {
+    free(w->h); free(w->experts); free(w->members); free(w->scratch);
+}
+
+static bool prefill_work_init(struct prefill_work *w, size_t tokens, char *error) {
+    /* Hidden, normed, operator, BX, attention, 3-way conv/QKV, two dense FF,
+     * four expert slots per token, router scores and expert weights. */
+    w->h = malloc(tokens * (5 * 2048 + 6144 + 2 * 7168 + 4 * 2048 + 32 + 4) * sizeof(float));
+    w->experts = malloc(tokens * 4 * sizeof(unsigned));
+    w->members = malloc(tokens * sizeof(size_t));
+    w->scratch = malloc(tokens * (7168 / 256) * sizeof(quant_bebel_block));
+    if (!w->h || !w->experts || !w->members || !w->scratch) {
+        prefill_work_free(w); return fail(error, "out of memory for LFM2 prefill workspace");
+    }
+    w->norm = w->h + tokens * 2048; w->op = w->norm + tokens * 2048;
+    w->bx = w->op + tokens * 2048; w->att = w->bx + tokens * 2048;
+    w->proj = w->att + tokens * 2048; w->gate = w->proj + tokens * 6144;
+    w->up = w->gate + tokens * 7168; w->slots = w->up + tokens * 7168;
+    w->router = w->slots + tokens * 4 * 2048; w->weights = w->router + tokens * 32;
+    return true;
+}
+
+/* Rows [first, first + count) of a weight, e.g. one stacked expert. */
+static quant_view weight_rows(const quant_view *w, size_t first, size_t count) {
+    quant_view v = *w;
+    v.data += first * v.row_stride; v.rows = count; v.n_bytes = count * v.row_stride;
+    return v;
+}
+
+static bool project_batch(struct prefill_work *w, const quant_view *weight, const float *x,
+                          size_t tokens, float *out, char *error) {
+    if (tokens == 1)
+        return quant_bebel_matvec(weight, x, true, 0, weight->rows, out, w->scratch, 7168 / 256, error);
+    return quant_bebel_matmul(weight, x, tokens, out, w->scratch, tokens * (7168 / 256), error);
+}
+
+/* Route every token, then run each selected expert once over the tokens that
+ * chose it; each token sums its experts in its own selection order. */
+static bool moe_ffn_batch(struct prefill_work *w, const struct lfm2_layer *l, size_t n, char *error) {
+    float *xe = w->bx, *down = w->att;
+    if (!project_batch(w, &l->router, w->norm, n, w->router, error)) return false;
+    for (size_t t = 0; t < n; t++)
+        if (!route(w->router + t * 32, l->bias_values, w->experts + t * 4, w->weights + t * 4, error)) return false;
+    for (unsigned e = 0; e < 32; e++) {
+        size_t g = 0;
+        for (size_t slot = 0; slot < n * 4; slot++)
+            if (w->experts[slot] == e) {
+                memcpy(xe + g * 2048, w->norm + slot / 4 * 2048, 2048 * sizeof(float));
+                w->members[g++] = slot;
+            }
+        if (!g) continue;
+        quant_view gate = weight_rows(&l->gate, e * 1792, 1792), up = weight_rows(&l->up, e * 1792, 1792);
+        quant_view proj = weight_rows(&l->down, e * 2048, 2048);
+        if (!project_batch(w, &gate, xe, g, w->gate, error) || !project_batch(w, &up, xe, g, w->up, error)) return false;
+        for (size_t j = 0; j < g * 1792; j++) w->gate[j] = (w->gate[j] / (1.f + expf(-w->gate[j]))) * w->up[j];
+        if (!project_batch(w, &proj, w->gate, g, down, error)) return false;
+        for (size_t j = 0; j < g; j++) memcpy(w->slots + w->members[j] * 2048, down + j * 2048, 2048 * sizeof(float));
+    }
+    memset(w->op, 0, n * 2048 * sizeof(float));
+    for (size_t t = 0; t < n; t++)
+        for (unsigned k = 0; k < 4; k++) {
+            const float *slot = w->slots + (t * 4 + k) * 2048; float weight = w->weights[t * 4 + k];
+            for (size_t j = 0; j < 2048; j++) w->op[t * 2048 + j] += weight * slot[j];
+        }
+    return true;
+}
+
+/* forward_one over n admitted tokens: projections and experts run once per
+ * chunk, while norms, RoPE, attention and the conv state advance per token. */
+static bool forward_batch(lfm2_state *s, struct prefill_work *w, const int32_t *ids, size_t n, char *error) {
+    const lfm2_model *m = s->model;
+    size_t pos = s->cache.position;
+    for (size_t t = 0; t < n; t++)
+        if (!quant_values(&m->embedding, (uint64_t)ids[t] * 2048, 2048, w->h + t * 2048, error)) return false;
+    for (size_t i = 0; i < 24; i++) {
+        const struct lfm2_layer *l = m->layers + i;
+        for (size_t t = 0; t < n; t++) lfm2_rmsnorm(w->h + t * 2048, l->norm_gain, 2048, 1e-5f, w->norm + t * 2048);
+        if (l->attention) {
+            float *q = w->proj, *k = q + n * 2048, *v = k + n * 512;
+            if (!project_batch(w, &l->q, w->norm, n, q, error) || !project_batch(w, &l->k, w->norm, n, k, error) ||
+                !project_batch(w, &l->v, w->norm, n, v, error)) return false;
+            for (size_t t = 0; t < n; t++)
+                attend(s, i, q + t * 2048, k + t * 512, v + t * 512, pos + t, w->att + t * 2048);
+        } else {
+            if (!project_batch(w, &l->in_proj, w->norm, n, w->proj, error)) return false;
+            for (size_t t = 0; t < n; t++) {
+                const float *p = w->proj + t * 6144; float *bx = w->bx + t * 2048;
+                for (size_t j = 0; j < 2048; j++) bx[j] = p[j] * p[4096 + j];
+                lfm2_conv_step(bx, p + 2048, l->conv_weights, 2048, 3, s->cache.conv[i], w->att + t * 2048);
+            }
+        }
+        if (!project_batch(w, &l->output, w->att, n, w->op, error)) return false;
+        for (size_t j = 0; j < n * 2048; j++) w->h[j] += w->op[j];
+        for (size_t t = 0; t < n; t++) lfm2_rmsnorm(w->h + t * 2048, l->ffn_gain, 2048, 1e-5f, w->norm + t * 2048);
+        if (i < 2) {
+            if (!project_batch(w, &l->gate, w->norm, n, w->gate, error) ||
+                !project_batch(w, &l->up, w->norm, n, w->up, error)) return false;
+            for (size_t j = 0; j < n * 7168; j++) w->gate[j] = (w->gate[j] / (1.f + expf(-w->gate[j]))) * w->up[j];
+            if (!project_batch(w, &l->down, w->gate, n, w->op, error)) return false;
+        } else if (!moe_ffn_batch(w, l, n, error)) return false;
+        for (size_t j = 0; j < n * 2048; j++) w->h[j] += w->op[j];
+    }
+    lfm2_rmsnorm(w->h + (n - 1) * 2048, m->final_gain, 2048, 1e-5f, s->cache.norm);
+    s->cache.position += n;
+    return true;
+}
+
+bool lfm2_prefill_batch(lfm2_state *s, const int32_t *ids, size_t count, size_t batch_size, char *error) {
+    if (!batch_size || batch_size > LFM2_PREFILL_MAX_BATCH) return fail(error, "LFM2 prefill batch size out of bounds");
+    if (!prefill_admit(s, ids, count, error)) return false;
+    if (!count) return true;
+    struct prefill_work w;
+    if (!prefill_work_init(&w, count < batch_size ? count : batch_size, error)) return false;
+    bool ok = true;
+    for (size_t i = 0; ok && i < count; i += batch_size)
+        ok = forward_batch(s, &w, ids + i, count - i < batch_size ? count - i : batch_size, error);
+    prefill_work_free(&w);
+    return ok;
+}
+
+bool lfm2_prefill(lfm2_state *s, const int32_t *ids, size_t count, char *error) {
+    if (count == 1) return lfm2_prefill_scalar(s, ids, count, error);
+    return lfm2_prefill_batch(s, ids, count, LFM2_PREFILL_BATCH, error);
 }
 
 bool lfm2_prompt_ids(const lfm2_model *m, const char *text, size_t bytes, bool bos,
@@ -644,19 +804,24 @@ bool lfm2_decode(lfm2_state *s, size_t max_tokens, lfm2_generation *out, char *e
         }
         out->ids[out->count] = best; out->margins[out->count] = first - second; out->count++;
         if (best == 124902) require_answer = true;
-        if (step + 1 < max_tokens && (!forward_one(s, best, error) ||
-            !project(s, &s->model->projection, s->cache.norm, 0, 128000, s->logits, error))) { ok = false; break; }
+        if (step + 1 == max_tokens) continue;
+        if (!forward_one(s, best, error)) { ok = false; break; }
+        out->decode_tokens++;
+        if (!project(s, &s->model->projection, s->cache.norm, 0, 128000, s->logits, error)) { ok = false; break; }
     }
     out->decode_seconds = monotonic_seconds() - start;
     if (ok) ok = tokenizer_decode(s->model->tokenizer, out->ids, out->count, &out->text, &out->bytes, error);
+    out->total_seconds = monotonic_seconds() - projection_start;
     if (!ok) lfm2_generation_free(out);
     return ok;
 }
 
-bool lfm2_generate(const lfm2_model *m, const char *prompt, size_t bytes,
-                   size_t max_tokens, lfm2_generation *out, char *error) {
+bool lfm2_generate_batch(const lfm2_model *m, const char *prompt, size_t bytes,
+                         size_t max_tokens, size_t batch_size, lfm2_generation *out, char *error) {
     memset(out, 0, sizeof(*out));
     if (!max_tokens || max_tokens > LFM2_MAX_GENERATED) return fail(error, "LFM2 generation length out of bounds");
+    if (!batch_size || batch_size > LFM2_PREFILL_MAX_BATCH) return fail(error, "LFM2 prefill batch size out of bounds");
+    double start = monotonic_seconds();
     int32_t *ids = NULL; size_t count = 0;
     if (!lfm2_prompt_ids(m, prompt, bytes, true, &ids, &count, error)) return false;
     if (!count || count > LFM2_MAX_CONTEXT - max_tokens) {
@@ -664,12 +829,21 @@ bool lfm2_generate(const lfm2_model *m, const char *prompt, size_t bytes,
     }
     lfm2_state *s = lfm2_state_new(m, count + max_tokens, error);
     if (!s) { free(ids); return false; }
-    double start = monotonic_seconds();
-    bool ok = lfm2_prefill(s, ids, count, error);
-    double prefill = monotonic_seconds() - start;
+    double prefill_start = monotonic_seconds();
+    bool ok = lfm2_prefill_batch(s, ids, count, batch_size, error);
+    double prefill = monotonic_seconds() - prefill_start;
     if (ok) ok = lfm2_decode(s, max_tokens, out, error);
-    if (ok) { out->prefill_seconds += prefill; out->prompt_tokens = count; }
+    if (ok) {
+        out->prefill_seconds += prefill; out->prompt_tokens = count;
+        out->prefill_batch_size = batch_size; out->prefill_batches = (count + batch_size - 1) / batch_size;
+        out->total_seconds = monotonic_seconds() - start;
+    }
     free(ids); lfm2_state_free(s); return ok;
+}
+
+bool lfm2_generate(const lfm2_model *m, const char *prompt, size_t bytes,
+                   size_t max_tokens, lfm2_generation *out, char *error) {
+    return lfm2_generate_batch(m, prompt, bytes, max_tokens, LFM2_PREFILL_BATCH, out, error);
 }
 
 static bool batch(const quant_view *w, const float *x, size_t tokens, float *out,

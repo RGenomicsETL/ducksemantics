@@ -76,3 +76,9 @@ SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [-1]);	L
 SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [128000]);	LFM2 requested token id must be non-NULL and within vocabulary
 SELECT semantic_next_token_logits('build/fixtures/valid.gguf', 'Hello', [0,NULL]);	LFM2 requested token id must be non-NULL and within vocabulary
 SELECT semantic_next_token_logits('', 'Hello', [0]);	invalid LFM2 model path
+SELECT semantic_generate_stats('unused', 'Hello', 0);	LFM2 generation length out of bounds
+SELECT semantic_generate_stats('unused', 'Hello', 8, 0);	LFM2 prefill batch size out of bounds
+SELECT semantic_generate_stats('unused', 'Hello', 8, -1);	LFM2 prefill batch size out of bounds
+SELECT semantic_generate_stats('unused', 'Hello', 8, 65);	LFM2 prefill batch size out of bounds
+SELECT semantic_generate_stats('', 'Hello', 8, 16);	invalid LFM2 model path
+SELECT semantic_generate_stats('build/fixtures/valid.gguf', 'Hello', 8);	unsupported LFM2 profile: general.architecture

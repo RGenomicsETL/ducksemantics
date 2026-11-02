@@ -31,7 +31,7 @@ GGUF_FILES ?= $(wildcard /root/bebelm/*.gguf)
 
 TEST_EXTENSION ?= $(ARTIFACT)
 
-.PHONY: all test native-tests fixtures sanitize fuzz audit quant-oracle clean
+.PHONY: all test native-tests fixtures sanitize fuzz audit quant-oracle prefill-test prefill-bench prefill-sanitize clean
 all: $(ARTIFACT)
 
 $(LIBRARY): $(SOURCES) $(HEADERS) src/sources.list Makefile
@@ -85,6 +85,23 @@ build/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/ggu
 
 build/lfm2_oracle: test/lfm2_oracle.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ test/lfm2_oracle.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS) -lpthread
+
+build/lfm2_prefill_test: test/lfm2_prefill_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS) Makefile
+	@mkdir -p build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Isrc -o $@ test/lfm2_prefill_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS)
+
+# Model-backed parity and timing stay separate from the weight-free ABI suite.
+LFM2_MODEL ?= $(DUCKSEMANTICS_GENERATE_MODEL)
+prefill-test: build/lfm2_prefill_test
+	build/lfm2_prefill_test "$(LFM2_MODEL)" parity
+prefill-bench: build/lfm2_prefill_test
+	build/lfm2_prefill_test "$(LFM2_MODEL)" bench
+prefill-sanitize: build/asan/lfm2_prefill_test
+	ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 build/asan/lfm2_prefill_test "$(LFM2_MODEL)" smoke
+
+build/asan/lfm2_prefill_test: test/lfm2_prefill_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS) Makefile
+	@mkdir -p build/asan
+	$(CC) $(CPPFLAGS) $(SANITIZE) -std=c11 -Isrc -o $@ test/lfm2_prefill_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(LDLIBS)
 
 build/asan/lfm2_test: test/lfm2_test.c src/lfm2.c src/quant.c src/tokenizer.c src/gguf.c $(HEADERS)
 	@mkdir -p build/asan
@@ -157,7 +174,7 @@ R_PACKAGE = r/ducksemantics
 R_BUILD = build/r
 R_LIB = $(abspath $(R_BUILD)/library)
 
-.PHONY: r-bootstrap r-sync-check r-build r-install r-test r-check readme site
+.PHONY: r-bootstrap r-sync-check r-build r-install r-test r-check package-readme readme site
 r-bootstrap:
 	Rscript $(R_PACKAGE)/tools/bootstrap.R
 
@@ -179,7 +196,10 @@ r-test: r-install
 r-check: r-build
 	cd $(R_BUILD) && R CMD check --no-manual --no-build-vignettes ducksemantics_*.tar.gz
 
-readme: r-install
+package-readme: r-install
+	cd $(R_PACKAGE) && R_LIBS=$(R_LIB) Rscript tools/render-readme.R
+
+readme: r-install package-readme
 	R_LIBS=$(R_LIB) Rscript scripts/render-readme.R
 
 # The helper owns distribution packaging, not the self-contained R build.

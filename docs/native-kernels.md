@@ -25,6 +25,7 @@ Run the commands in this reference from the repository root.
 | `semantic_embed(path VARCHAR, text VARCHAR, task VARCHAR, dimensions INTEGER, normalize BOOLEAN)` | EmbeddingGemma `FLOAT[]` |
 | `semantic_colbert_encode(path VARCHAR, text VARCHAR, role VARCHAR)` | L2-normalized token vectors as `FLOAT[][]`; role is `'query'` or `'document'` |
 | `semantic_generate(path VARCHAR, prompt VARCHAR, max_tokens INTEGER)` | Greedy LFM2-MoE output as UTF-8 `VARCHAR` |
+| `semantic_generate_stats(path VARCHAR, prompt VARCHAR, max_tokens INTEGER[, prefill_batch_size INTEGER])` | Output text, token counts, timing boundaries and rates in a scalar `STRUCT` |
 | `semantic_next_token_logits(path VARCHAR, prompt VARCHAR, token_ids INTEGER[])` | Diagnostic raw next-token logits in requested-id order as `FLOAT[]`; used by regression oracles |
 
 ```sql
@@ -146,9 +147,11 @@ generation-control masking or probability normalization.
 convolution history, absolute position, normalized final hidden state and
 scratch. Forking copies active KV, both history columns and position into
 independent allocations; immutable model weights are borrowed. Decoder state
-leaves the final emitted id pending, as in bebelm; prefill that id before
-continuing. Constructors and operations require initialized non-NULL handles.
-A failed forward operation invalidates the state for further use.
+leaves the final emitted id pending at a token-budget stop; prefill that id
+before continuing. Terminal controls are not emitted. Constructors and
+operations require initialized non-NULL handles. Invalid IDs, capacity and
+batch sizes are rejected before cache mutation. A failed forward operation
+invalidates the state for further use.
 
 The weight-free cache isolation and packed/unpacked integer-dot tests are in
 `test/lfm2_test.c`. The model-weight oracle builds a native sequence/timing
@@ -381,20 +384,94 @@ checked against the dispatched kernel by the native test.
 
 ## Generation prefill and telemetry
 
-The native LFM2-MoE generation path prefills prompt tokens sequentially in
-`lfm2_prefill()`. Token-batched prefill is not part of this C implementation.
-Rbebelm's Rust backend has batched layer execution and scalar-versus-batched
-cache/logit tests; numerical compatibility does not establish equivalent
-prefill performance.
+`lfm2_prefill_batch()` processes bounded token-major chunks of **1..64**
+positions. K-quant projections visit weight rows before tokens and reuse the
+packed scalar SIMD dot kernel on SSE2; other weight types use per-token dots. MoE work
+is grouped by selected expert and accumulated in each token's routing order.
+Causal attention uses absolute RoPE positions and only preceding/current KV;
+convolution advances its two-position history sequentially. ColBERT retains
+its bidirectional encoder path. `lfm2_prefill_scalar()` is the independent
+per-token oracle. The default is declared as `LFM2_PREFILL_BATCH` in
+`src/lfm2.h`; `lfm2_generate_batch()` provides explicit control.
 
-The C `lfm2_generation` result retains `prompt_tokens`, generated-id `count`,
-`prefill_seconds`, and `decode_seconds`. `semantic_generate()` returns the
-text only, so these fields are not exposed as a SQL statistics relation.
-Prefill time includes the initial vocabulary projection. Decode time covers
-selection and decode-forward work, not detokenization. At a token-budget stop,
-the last emitted token is pending rather than already processed by the decode
-state; terminal-token stops have different counts. Throughput measurements
-must distinguish emitted tokens from decoded forward passes.
+`semantic_generate_stats()` performs one generation per input row and returns
+its text and metrics together. Its three-argument overload uses the default;
+the fourth argument selects the prefill chunk size. Both generation SQL
+functions are volatile. To extract several fields without repeated model
+calls, materialize the result:
+
+```sql
+WITH run AS MATERIALIZED (
+  SELECT semantic_generate_stats('lfm2moe.gguf', 'Name one DNA repair gene.', 32, 16) AS result
+)
+SELECT result.text, result.prefill_seconds, result.decode_tokens_per_second FROM run;
+```
+
+| Field | Meaning |
+|---|---|
+| `text` | Detokenized generated IDs; terminal controls omitted |
+| `prompt_tokens` | Prompt positions, including BOS |
+| `generated_tokens` | Emitted ID count |
+| `decode_tokens` | Actual decode forward calls, excluding prompt work |
+| `prefill_batches`, `prefill_batch_size` | Number of prompt chunks and requested chunk bound |
+| `model_load_seconds` | Model-cache lookup/loading, including lock wait; cached lookups are still timed |
+| `prefill_seconds` | Prompt forward work and the initial vocabulary projection |
+| `decode_seconds` | Greedy selection and decode forwards, excluding detokenization |
+| `generation_seconds` | Tokenization through detokenization, excluding model acquisition and state cleanup |
+| `total_seconds` | Successful row wall time through generation return, including model acquisition and cleanup; excludes result-vector writes |
+| `prefill_tokens_per_second` | Prompt count divided by prefill time |
+| `decode_tokens_per_second` | Actual decode forward count divided by decode time |
+| `stopped` | A terminal control ended decoding |
+
+Rates are `NULL` when their work count or positive elapsed denominator is
+absent. NULL inputs propagate to both the parent STRUCT and its fields.
+At a token-budget stop the last emitted ID is pending; a one-token budget
+therefore has zero decode forwards and a NULL decode rate. Selection overhead
+is part of decode time, so these are phase rates rather than isolated kernel
+rates. Model weights are local development inputs, not package contents.
+
+Run the real-model cache/logit/greedy oracle, the warmed prefill benchmark, and
+the SQL metric contracts independently of the weight-free ABI suite:
+
+```sh
+make prefill-test LFM2_MODEL=/path/to/LFM2.5-8B-A1B-Q4_K_M.gguf
+make prefill-bench LFM2_MODEL=/path/to/LFM2.5-8B-A1B-Q4_K_M.gguf
+make prefill-sanitize LFM2_MODEL=/path/to/LFM2.5-8B-A1B-Q4_K_M.gguf
+DUCKSEMANTICS_GENERATE_MODEL=/path/to/LFM2.5-8B-A1B-Q4_K_M.gguf \
+  Rscript scripts/audit_prefill_stats.R
+```
+
+The SQL audit writes `build/prefill-audit/sql-stats.csv` and a receipt with
+model/artifact paths and model size. It fails if weights are unavailable.
+Numerical parity and measured speedup are separate requirements.
+
+### Verified native prefill profile
+
+On Linux x86-64, the local LFM2.5-8B-A1B Q4_K_M file matched the scalar
+oracle exactly for batches 1, 2, 7, 16, 32 and 64: valid KV and convolution
+history, final norm, absolute position, probed logits, greedy IDs/margins/text,
+and prefixed/forked continuation. Invalid admission left caches unchanged.
+The shared packed-dot path also matched the Rbebelm ColBERT oracle exactly
+for all 1,913 vectors across 50 encodings; all 24 rankings agreed.
+
+An 83-token prompt on an Intel Core i5-13500, pinned to CPU 2, one thread,
+`-O3 -ffp-contract=off`, after a scalar warm-up, produced the following
+**best-of-two** prefill-only measurements. State construction and vocabulary
+projection are outside this benchmark; SQL phase timings include projection.
+
+| Route | Seconds | Prompt tokens/s |
+|---|---:|---:|
+| Scalar | 14.529 | 5.71 |
+| Batch 16 | 12.354 | 6.72 |
+| Batch 32 | 13.126 | 6.32 |
+| Batch 64 | 13.954 | 5.95 |
+
+The default bound is **16**, about 1.18× scalar throughput in this run.
+These are one-host, one-prompt observations, not a general speedup guarantee;
+short prompts and other CPUs/quantizations require their own measurements.
+The native benchmark checks cache/logit equality outside every timed batch
+run. Results are in `build/prefill-audit/benchmark-packed.txt` and
+`build/prefill-audit/parity-packed.txt`.
 
 ## Build and test
 
